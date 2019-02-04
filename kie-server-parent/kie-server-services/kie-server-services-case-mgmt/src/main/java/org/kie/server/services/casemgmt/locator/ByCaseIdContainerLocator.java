@@ -37,7 +37,7 @@ public class ByCaseIdContainerLocator implements ContainerLocator {
 
     private static final Logger logger = LoggerFactory.getLogger(ByCaseIdContainerLocator.class);
 
-    private static final String CONTAINER_ID_QUERY = "select log.externalId from ProcessInstanceLog log where log.correlationKey = :caseId";
+    private static final String CONTAINER_ID_QUERY = "select distinct log.externalId from ProcessInstanceLog log where log.correlationKey = :caseId";
     private String caseId;
 
     private String containerId;
@@ -63,8 +63,10 @@ public class ByCaseIdContainerLocator implements ContainerLocator {
             logger.debug("Found container id '{}' for case id {}", containerId, caseId);
             return containerId;
 
-        } catch (NoResultException | NonUniqueResultException e) {
+        } catch (NoResultException e) {
             throw new IllegalArgumentException("Case with id " + caseId + " not found");
+        } catch (NonUniqueResultException e) {
+            throw new IllegalArgumentException("Multiple containerIds found for caseId " + caseId);
         } finally {
             em.close();
         }

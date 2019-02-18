@@ -42,5 +42,15 @@
       <artifactId>jackson-core-asl</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.activation</groupId>
+      <artifactId>activation</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

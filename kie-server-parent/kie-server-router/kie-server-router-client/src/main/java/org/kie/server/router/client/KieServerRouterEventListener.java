@@ -48,6 +48,8 @@ public class KieServerRouterEventListener implements KieServerEventListener {
     private String serverId = System.getProperty(KieServerConstants.KIE_SERVER_ID);
     private String serverURL = System.getProperty(KieServerConstants.KIE_SERVER_LOCATION);
     private String routerURL = System.getProperty(KieServerConstants.KIE_SERVER_ROUTER);
+    private String password = System.getProperty(KieServerConstants.KIE_ROUTER_MANAGEMENT_PASSWORD);
+
     private int failedAttemptsInterval = Integer.parseInt(System.getProperty(KieServerConstants.KIE_SERVER_ROUTER_ATTEMPT_INTERVAL, "10"));
     
     private KieContainerResourceFilter activeOnly = new KieContainerResourceFilter(ReleaseIdFilter.ACCEPT_ALL, KieContainerStatusFilter.parseFromNullableString("STARTED"));
@@ -168,8 +170,15 @@ public class KieServerRouterEventListener implements KieServerEventListener {
     protected boolean send(String url, String containerId, String payload, boolean add, boolean retry) {
 
         try {
-            KieServerHttpRequest httpRequest = KieServerHttpRequest.newRequest(url)
-                    .followRedirects(true)
+            KieServerHttpRequest httpRequest = null;
+            // auth will be used if password is provided. user will be the server id
+            if (password != null && !password.isEmpty()) {
+                httpRequest = KieServerHttpRequest.newRequest(url, serverId, password);
+            } else {
+                httpRequest = KieServerHttpRequest.newRequest(url);
+            }
+
+            httpRequest.followRedirects(true)
                     .contentType("application/json")
                     .accept("application/json")
                     .timeout(5000)

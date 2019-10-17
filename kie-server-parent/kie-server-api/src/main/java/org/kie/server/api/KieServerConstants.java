@@ -110,6 +110,8 @@ public class KieServerConstants {
     public static final String KIE_SERVER_PARAM_RESET_BEFORE_UPDATE = "KieServerResetBeforeUpdate";
 
     public static final String KIE_SERVER_ROUTER = "org.kie.server.router";
+    public static final String KIE_ROUTER_MANAGEMENT_PASSWORD = "org.kie.server.router.management.password";
+
     public static final String KIE_SERVER_ROUTER_ATTEMPT_INTERVAL = "org.kie.server.router.connect";
 
     public static final String KIE_OPTAPLANNER_THREAD_POOL_QUEUE_SIZE = "org.optaplanner.server.ext.thread.pool.queue.size";

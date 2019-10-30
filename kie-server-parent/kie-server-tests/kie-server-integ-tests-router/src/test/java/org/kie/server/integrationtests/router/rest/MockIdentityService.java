@@ -21,6 +21,7 @@ import java.util.Set;
 
 import io.undertow.security.idm.Account;
 import io.undertow.security.idm.Credential;
+import io.undertow.security.idm.PasswordCredential;
 import org.kie.server.router.identity.IdentityService;
 
 
@@ -38,10 +39,17 @@ public class MockIdentityService implements IdentityService {
 
     @Override
     public Account verify(final String id, Credential credential) {
-        if (!id.equals("mockUser")) {
+        String password ="";
+        if (credential instanceof PasswordCredential) {
+            password = new String(((PasswordCredential)credential).getPassword());
+        }
+        
+        if (!"mockUser".equals(id) || !"mockPassword".equals(password)) {
             return null;
         }
         return new Account() {
+
+           private static final long serialVersionUID = 1L;
 
             @Override
             public Principal getPrincipal() {

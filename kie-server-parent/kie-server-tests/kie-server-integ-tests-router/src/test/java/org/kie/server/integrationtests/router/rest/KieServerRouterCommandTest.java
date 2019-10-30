@@ -72,6 +72,19 @@ public class KieServerRouterCommandTest {
         service.removeKieServerInstance("simpleId");
         Assert.assertNull(service.verify("simpleId", new PasswordCredential("simple password".toCharArray())));
     }
+    
+    @Test
+    public void testDefaultIdentityServiceFromMain() throws Exception {
+        // add instance
+        KieServerRouter.main(new String[] {"-addInstance", "mainId", "mainpw"});
+        
+        IdentityService service = router.getIdentityService();
+        Assert.assertNotNull(service.verify("mainId", new PasswordCredential("mainpw".toCharArray())));
+
+        // remove instance
+        KieServerRouter.main(new String[] {"-removeInstance", "mainId", "mainpw"});
+        Assert.assertNull(service.verify("mainId", new PasswordCredential("mainpw".toCharArray())));
+    }
 
     private static int allocatePort() {
         try {

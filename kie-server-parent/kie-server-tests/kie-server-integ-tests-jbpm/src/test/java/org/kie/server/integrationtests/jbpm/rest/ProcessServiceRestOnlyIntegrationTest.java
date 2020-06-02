@@ -15,10 +15,29 @@
 
 package org.kie.server.integrationtests.jbpm.rest;
 
-import static org.assertj.core.api.Assertions.*;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
+
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.kie.server.api.marshalling.Marshaller;
+import org.kie.server.api.marshalling.MarshallerFactory;
+import org.kie.server.api.model.ReleaseId;
+import org.kie.server.api.model.definition.ProcessDefinitionList;
+import org.kie.server.api.model.instance.NodeInstanceList;
+import org.kie.server.api.model.instance.ProcessInstanceList;
+import org.kie.server.api.model.instance.VariableInstanceList;
+import org.kie.server.api.model.type.JaxbLong;
+import org.kie.server.api.rest.RestURI;
+import org.kie.server.integrationtests.config.TestConfig;
+import org.kie.server.integrationtests.shared.KieServerDeployer;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.kie.server.api.rest.RestURI.ABORT_PROCESS_INST_DEL_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_BY_CONTAINER_GET_URI;
-import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_BY_PARENT_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_NODE_INSTANCES_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCE_VAR_INSTANCES_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCE_VAR_INSTANCE_BY_VAR_NAME_GET_URI;
@@ -28,33 +47,7 @@ import static org.kie.server.api.rest.RestURI.PROCESS_URI;
 import static org.kie.server.api.rest.RestURI.START_PROCESS_POST_URI;
 import static org.kie.server.api.rest.RestURI.VAR_NAME;
 import static org.kie.server.api.rest.RestURI.WORK_ITEM_ID;
-import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCE_GET_URI;
 import static org.kie.server.api.rest.RestURI.build;
-
-import java.text.MessageFormat;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response;
-
-import org.assertj.core.api.Assertions;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.kie.server.api.marshalling.Marshaller;
-import org.kie.server.api.marshalling.MarshallerFactory;
-import org.kie.server.api.marshalling.MarshallingFormat;
-import org.kie.server.api.model.ReleaseId;
-import org.kie.server.api.model.definition.ProcessDefinitionList;
-import org.kie.server.api.model.instance.NodeInstanceList;
-import org.kie.server.api.model.instance.ProcessInstance;
-import org.kie.server.api.model.instance.ProcessInstanceList;
-import org.kie.server.api.model.instance.VariableInstanceList;
-import org.kie.server.api.model.type.JaxbLong;
-import org.kie.server.api.rest.RestURI;
-import org.kie.server.integrationtests.config.TestConfig;
-import org.kie.server.integrationtests.shared.KieServerDeployer;
-import org.kie.server.integrationtests.shared.basetests.KieServerBaseIntegrationTest;
 
 
 public class ProcessServiceRestOnlyIntegrationTest extends RestJbpmBaseIntegrationTest {
@@ -158,7 +151,7 @@ public class ProcessServiceRestOnlyIntegrationTest extends RestJbpmBaseIntegrati
             response = clientRequest.request(getMediaType()).get();
             processInstanceList = marshaller.unmarshall(response.readEntity(String.class), ProcessInstanceList.class);
 
-            assertThat(response.getStatus()).isEqualTo(Response.Status.OK.getStatusCode());
+            assertThat(response.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
             assertThat(processInstanceList.getItems()).isEmpty();
         } finally {
             if(response != null) {
@@ -302,7 +295,7 @@ public class ProcessServiceRestOnlyIntegrationTest extends RestJbpmBaseIntegrati
             response = clientRequest.request(getMediaType()).get();
             processDefinitionList = marshaller.unmarshall(response.readEntity(String.class), ProcessDefinitionList.class);
 
-            assertThat(response.getStatus()).isEqualTo(Response.Status.OK.getStatusCode());
+            assertThat(response.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
             assertThat(processDefinitionList.getItems()).isEmpty();
         } finally {
             if(response != null) {

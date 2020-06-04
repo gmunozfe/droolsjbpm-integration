@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.jbpm.services.api.AdvanceRuntimeDataService;
+import org.jbpm.services.api.DeploymentNotFoundException;
 import org.jbpm.services.api.ProcessInstanceNotFoundException;
 import org.jbpm.services.api.RuntimeDataService;
 import org.jbpm.services.api.RuntimeDataService.EntryType;
@@ -346,7 +347,7 @@ public class RuntimeDataServiceBase {
             return processDefinitionList;
         } catch (IllegalArgumentException e) {
             // container was not found by locator
-            return new ProcessDefinitionList();
+            throw new DeploymentNotFoundException(containerId+ " not found");
         }
     }
 

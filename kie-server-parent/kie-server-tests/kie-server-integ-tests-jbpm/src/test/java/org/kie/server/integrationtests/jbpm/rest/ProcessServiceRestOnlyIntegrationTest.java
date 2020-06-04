@@ -149,10 +149,9 @@ public class ProcessServiceRestOnlyIntegrationTest extends RestJbpmBaseIntegrati
             clientRequest = newRequest(build(TestConfig.getKieServerHttpUrl(), PROCESS_URI + "/" + PROCESS_INSTANCES_BY_CONTAINER_GET_URI, valuesMap));
             logger.debug( "[GET] " + clientRequest.getUri());
             response = clientRequest.request(getMediaType()).get();
-            processInstanceList = marshaller.unmarshall(response.readEntity(String.class), ProcessInstanceList.class);
+            assertThat(response.readEntity(String.class)).contains(NON_EXISTING_CONTAINER_ID);
 
             assertThat(response.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
-            assertThat(processInstanceList.getItems()).isEmpty();
         } finally {
             if(response != null) {
                 response.close();
@@ -293,10 +292,9 @@ public class ProcessServiceRestOnlyIntegrationTest extends RestJbpmBaseIntegrati
             clientRequest = newRequest(build(TestConfig.getKieServerHttpUrl(), PROCESS_URI, valuesMap));
             logger.debug( "[GET] " + clientRequest.getUri());
             response = clientRequest.request(getMediaType()).get();
-            processDefinitionList = marshaller.unmarshall(response.readEntity(String.class), ProcessDefinitionList.class);
-
+            
             assertThat(response.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
-            assertThat(processDefinitionList.getItems()).isEmpty();
+            assertThat(response.readEntity(String.class)).contains(NON_EXISTING_CONTAINER_ID);
         } finally {
             if(response != null) {
                 response.close();

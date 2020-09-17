@@ -61,10 +61,16 @@ public class NotificationSaveContentIntegrationTest extends JbpmKieServerBaseInt
             List<TaskSummary> tasks=taskClient.findTasksAssignedAsPotentialOwner(USER_YODA, 0, 10);
             assertEquals(1, tasks.size());
             
+            System.out.println("@@ testSaveContentOnNotification: task:"+tasks.get(0).getName());
+            
             String reserved = Reserved.name();
             //Task is claimed during onNotification, as well as saving output content
             //Waiting until switched to Reserved (when claimed)
+            System.out.println("@@ testSaveContentOnNotification: waiting for status reserved:"+tasks.get(0).getStatus());
+            
             KieServerSynchronization.waitForTaskStatus(taskClient, tasks.get(0).getId(), reserved);
+            
+            System.out.println("@@ testSaveContentOnNotification: ALREADY status reserved:"+tasks.get(0).getStatus());
             
             tasks=taskClient.findTasksByStatusByProcessInstanceId(processInstanceId, singletonList(reserved), 0, 10);
             assertEquals(1, tasks.size());
@@ -75,6 +81,8 @@ public class NotificationSaveContentIntegrationTest extends JbpmKieServerBaseInt
             assertTrue(output.containsKey("grade"));
             assertTrue(output.containsValue("E"));
         } finally {
+            System.out.println("@@ testSaveContentOnNotification: abortProcessInstance:"+processInstanceId);
+            
             processClient.abortProcessInstance(CONTAINER_ID_NOTIFICATION, processInstanceId);
         }
     }

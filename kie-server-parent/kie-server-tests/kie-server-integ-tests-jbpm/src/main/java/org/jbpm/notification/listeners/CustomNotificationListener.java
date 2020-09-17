@@ -31,16 +31,25 @@ public class CustomNotificationListener implements NotificationListener {
     
     private UserTaskService userTaskService = (UserTaskService) ServiceRegistry.get().service(ServiceRegistry.USER_TASK_SERVICE);
 
+    public CustomNotificationListener() {
+        System.out.println("@@ CustomNotificationListener CONSTRUCTOR");
+    }
+    
     @Override
     public void onNotification(NotificationEvent event, UserInfo userInfo) {
         logger.debug("onNotification with event content {}", event.getContent());
+        System.out.println("@@ CustomNotificationListener onNotification with event content " +event.getContent());
         try {
             if ("TaskSaveContent".equals(event.getTask().getName())) {
+                System.out.println("@@ CustomNotificationListener saveContent " +event.getTask().getId());
                 userTaskService.saveContent(event.getTask().getId(), singletonMap("grade", "E"));
                 //User mary claims the task, so state switches from Ready to Reserved after saving content to be checked
+                System.out.println("@@ CustomNotificationListener claim " +event.getTask().getId());
                 userTaskService.claim(event.getTask().getId(), "mary");
             }
         } catch (Exception e) {
+            System.out.println("@@ CustomNotificationListener exception "+e.getMessage());
+            
             logger.error("Unexpected exception", e);
         }
     }

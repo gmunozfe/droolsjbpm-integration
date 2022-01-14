@@ -14,7 +14,11 @@ This sample application support three profiles:
 - PostreSQL
 - MySQL
 
-configuration of each profile is via application-{profile}.properties file where data source can be configured to desired values.
+and another profile for an alternative container (instead of Tomcat):
+
+- Undertow
+
+Configuration of each profile is via application-{profile}.properties file where data source can be configured to desired values.
 
 To be able to use the given profile it needs to be first build with enabled maven profile:
 
@@ -36,16 +40,24 @@ For MySQL use following command to build the project:
 mvn clean install -Pmysql
 ```
 
+For Undertow use following command to build the project:
+
+```
+mvn clean install -Ph2,undertow
+mvn clean install -Ppostgres,undertow
+mvn clean install -Pmysql,undertow
+```
+
 Running the application
 ------------------------------
-
-For PostgreSQL use following command to build the project:
 
 For H2 use following command to build the project:
 
 ```
 java -jar target/jbpm-spring-boot-sample-basic-7300.0-SNAPSHOT.jar evaluation:evaluation:1.0.0-SNAPSHOT
 ```
+
+For PostgreSQL use following command to build the project:
 
 ```
 java -Dspring.profiles.active=postgres -jar target/jbpm-spring-boot-sample-basic-7.65.0-SNAPSHOT.jar evaluation:evaluation:1.0.0-SNAPSHOT

@@ -86,6 +86,9 @@ public class JobServiceMigrationIntegrationTest extends JbpmKieServerBaseIntegra
         // first container has a wrong deployment-structure (without CustomWorkItemHandler definition), so job ends up in Error status
         List<RequestInfoInstance> errors = jobServicesClient.getRequestsByContainer(CONTAINER_ID1, singletonList(ERROR.toString()), 0, 10);
         
+        System.out.println("@@@ errors.size() "+errors.size());
+        System.out.println("@@@ errors: "+errors);
+        
         Long jobId = errors.get(0).getId();
         
         // migrate process instance to container 2 (right deployment-structure containing the CustomWorkItemHandler definition)

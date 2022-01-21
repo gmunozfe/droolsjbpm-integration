@@ -81,6 +81,11 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
+        <groupId>org.kie</groupId>
+        <artifactId>kie-maven-plugin</artifactId>
+        <version>7.65.0.redhat-220119</version>
+      </dependency>
+      <dependency>
         <groupId>org.drools</groupId>
         <artifactId>drools-bom</artifactId>
         <version>${version.org.kie}</version>

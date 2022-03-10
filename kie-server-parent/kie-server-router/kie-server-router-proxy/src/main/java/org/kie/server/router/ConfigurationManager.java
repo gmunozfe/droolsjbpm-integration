@@ -19,6 +19,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -45,9 +48,10 @@ public class ConfigurationManager {
     private ConfigurationMarshaller marshaller;
     private ScheduledExecutorService executorService;
 
-    private ScheduledFuture<?> failedHostsReconnects;
     private ScheduledFuture<?> addToControllerAttempts;
     private ScheduledFuture<?> removeFromControllerAttempts;
+    
+    private ConcurrentMap<FailedHostInfo, ScheduledFuture<?>> pollingMap = new ConcurrentHashMap<>();
 
     private CopyOnWriteArrayList<FailedHostInfo> failedHosts = new CopyOnWriteArrayList<>();
     private CopyOnWriteArrayList<ContainerInfo> containersToAddToController = new CopyOnWriteArrayList<>();
@@ -126,18 +130,23 @@ public class ConfigurationManager {
     }
 
     public  synchronized FailedHostInfo disconnectFailedHost(String url) {
-        log.info("Server at " + url+ " is now offline");
+        log.info("@@// Server at " + url+ " is now offline");
         FailedHostInfo failedHost = configuration.removeUnavailableServer(url);
         failedHosts.add(failedHost);
-        log.debug("Scheduling host checks...");
+        log.debug("@@// Scheduling host checks...");
         long attemptInterval = environment().getKieControllerAttemptInterval();
-        failedHostsReconnects = executorService.scheduleAtFixedRate(this::pingFailedHost, attemptInterval, attemptInterval, TimeUnit.SECONDS);
+        ScheduledFuture<?> failedHostsReconnects = executorService.scheduleAtFixedRate(() -> pingFailedHost(failedHost), attemptInterval, attemptInterval, TimeUnit.SECONDS);
+        log.debug("@@// store in the map ["+failedHost+" , "+failedHostsReconnects+"]");
+        pollingMap.put(failedHost, failedHostsReconnects);
+            
         repository.persist(configuration);
         return failedHost;
     }
+    
+   
 
     public synchronized void reconnectFailedHost(FailedHostInfo failedHostInfo) {
-        log.info("Server at " + failedHostInfo.getServerUrl() + " is back online");
+        log.info("@@// Server at " + failedHostInfo.getServerUrl() + " is back online");
         configuration.reloadFromRepository(repository.load());
         for (String containerId : failedHostInfo.getContainers()) {
             configuration.addContainerHost(containerId, failedHostInfo.getServerUrl());
@@ -146,30 +155,39 @@ public class ConfigurationManager {
         repository.persist(configuration);
     }
 
-    private void pingFailedHost() {
-        if (failedHosts.isEmpty()) {
-            return;
-        }
-        Iterator<FailedHostInfo> it = failedHosts.iterator();
-        while (it.hasNext()) {
-            FailedHostInfo failedHost = it.next();
+    private void pingFailedHost(FailedHostInfo failedHost) {
+        
+            log.info("@@^^ pingFailedHost: " + failedHost);
+            log.info("@@^  AttemptLimit(): " + environment().getKieControllerRecoveryAttemptLimit());
+            log.info("@@^  getAttempts(): " + failedHost.getAttempts());
+            
             if (environment().getKieControllerRecoveryAttemptLimit() == failedHost.getAttempts()) {
-                it.remove();
+                cancelPolling(failedHost);
                 log.info("Host " + failedHost.getServerUrl() + " has reached reconnect attempts limit " + environment().getKieControllerRecoveryAttemptLimit() + " quiting");
-                continue;
+                return;
             }
             try {
                 HttpUtils.getHttpCall(environment(), failedHost.getServerUrl());
 
-                failedHostsReconnects.cancel(false);
+                log.info("@@^^ SUCCESS failedHost: " + failedHost);
+                cancelPolling(failedHost);
                 reconnectFailedHost(failedHost);
             } catch (Exception e) {
                 log.debug("Host " + failedHost.getServerUrl() + " is still not available, attempting to reconnect in " + environment().getKieControllerAttemptInterval() + " seconds, error "
                         + e.getMessage());
-            } finally {
                 failedHost.attempted();
             }
+    }
+
+    private synchronized void cancelPolling(FailedHostInfo failedHostInfo) {
+        ScheduledFuture<?> pollingTask = pollingMap.get(failedHostInfo);
+        if (pollingTask!=null) {
+            pollingTask.cancel(false);
+            pollingMap.remove(failedHostInfo);
+            log.warn("@@// cancelPolling");
         }
+        else
+            log.warn("@@// cancelPolling future null");
     }
 
     private void updateControllerOnRemove(String containerId) {

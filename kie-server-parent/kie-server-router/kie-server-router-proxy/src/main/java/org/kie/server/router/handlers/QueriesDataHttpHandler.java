@@ -97,7 +97,8 @@ public class QueriesDataHttpHandler extends AbstractAggregateHttpHandler {
                 try {
                     response = sendPostRequest(url, body, exchange, responseHeaders, routerPage, routerPageSize);
                 } catch (Exception e) {
-                    log.error("Error when forwarding request to server", e);
+                    log.error("3 Error when forwarding request to server", e);
+                    e.printStackTrace();
                     removeHostOnException(url, e);
                 }
 
@@ -146,7 +147,8 @@ public class QueriesDataHttpHandler extends AbstractAggregateHttpHandler {
                 try {
                     response = sendPutRequest(url, body, exchange, responseHeaders);
                 } catch (Exception e) {
-                    log.error("Error when forwarding request to server", e);
+                    log.error("4 Error when forwarding request to server", e);
+                    e.printStackTrace();
                     removeHostOnException(url, e);
                 }
 
@@ -174,7 +176,8 @@ public class QueriesDataHttpHandler extends AbstractAggregateHttpHandler {
                 try {
                     sendDeleteRequest(url, exchange, responseHeaders);
                 } catch (Exception e) {
-                    log.error("Error when forwarding request to server", e);
+                    log.error("5 Error when forwarding request to server", e);
+                    e.printStackTrace();
                     removeHostOnException(url, e);
                 }
 

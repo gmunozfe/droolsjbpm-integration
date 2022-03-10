@@ -31,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import javax.net.ssl.SSLException;
+
 import org.jboss.logging.Logger;
 import org.kie.server.router.ConfigurationManager;
 import org.kie.server.router.proxy.aggragate.ResponseAggregator;
@@ -108,9 +110,12 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
         List<String> returnResponses = getServerHosts().parallelStream().map(url -> {
             String response = null;
             try {
+            	log.info("@@$ sendRequest "+url+" ; "+exchange+" ; "+responseHeaders);
                 response = sendRequest(url, exchange, responseHeaders, routerPage, routerPageSize);
             } catch (Exception e) {
-                log.error("Error when forwarding request to server", e);
+                log.error("1 Error when forwarding request to server", e);
+                log.info("--------->   Exception when forwarding: "+e.getMessage());
+                e.printStackTrace();
 
                 removeHostOnException(url, e);
             }
@@ -181,17 +186,23 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
 
         //add request headers
         exchange.getRequestHeaders().forEach(h -> {
+        	log.infof("@@& getRequestHeaders : %s :: %s", h.getHeaderName().toString(), h.getFirst());
             con.setRequestProperty(h.getHeaderName().toString(), h.getFirst());
         });
 
-        log.debugf("Sending 'GET' request to URL : %s", obj);
+        con.setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
+        con.setRequestProperty("Pragma", "no-cache");
+        con.setRequestProperty("Expires", "0");
+        
+        log.infof("@@& Sending 'GET' request to URL : %s", obj);
         int responseCode = con.getResponseCode();
-        log.debugf("Response Code : %s", responseCode);
+        log.infof("@@& Response Code : %s", responseCode);
 
         Map<String, List<String>> headers = con.getHeaderFields();
         headers.forEach((k, v) -> {
             if (k != null) {
                 responseHeaders.put(k, v);
+                log.infof("@@^^ url:"+url+"  -->  adding responseHeaders: ["+k+" , "+v+"]");
             }
         });
 
@@ -252,7 +263,7 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
     }
 
     protected void removeHostOnException(String url, Exception e) {
-        if (e instanceof SocketException || e instanceof UnknownHostException) {
+        if (e instanceof SocketException || e instanceof UnknownHostException || e instanceof SSLException) {
             configurationManager.disconnectFailedHost(url);
             log.warn("Removed host '" + url + "' due to its unavailability (cause " + e.getMessage() + ")");
         }
@@ -282,10 +293,12 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
         String returnResponse = getServerHosts().stream().findFirst().map(url -> {
             String response = null;
             try {
+            	log.info("@@$$ sendRequest "+url+" ; "+exchange+" ; "+responseHeaders);
                 response = sendOptionsRequest(url, exchange, responseHeaders);
             } catch (Exception e) {
-                log.error("Error when forwarding request to server", e);
+                log.error("2 Error when forwarding request to server", e);
 
+                e.printStackTrace();
                 removeHostOnException(url, e);
             }
 

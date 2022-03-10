@@ -52,8 +52,11 @@ public class ConfigFileWatcher implements Runnable {
         try {
             if(toWatch.toFile().exists()) {
                 lastUpdate = Files.getLastModifiedTime(toWatch).toMillis();
+                log.info("@@! toWatch.toFile().exists lastUpdate: " + lastUpdate);
             } else {
-                log.warnv("configuration file does not exist {0} , creating...", this.toWatch);
+                log.warnv("@@! configuration file does not exist {0} , creating 1st !!!!...", this.toWatch);
+                log.info("@@! getLastModifiedTime: " + Files.getLastModifiedTime(toWatch).toMillis());
+                log.info("@@! lastUpdate: " + lastUpdate);
                 configuration.persist();
             }
         } catch (IOException e) {
@@ -79,15 +82,19 @@ public class ConfigFileWatcher implements Runnable {
                     if(!toWatch.toFile().exists()) {
                        log.warnv("configuration file does not exist {0} ", this.toWatch);
                        Thread.sleep(environment().getConfigFileWatcherInterval());
+                       log.info("@@! after sleep interval: " + environment().getConfigFileWatcherInterval());
                        continue;
                     }
                     FileTime lastModified = Files.getLastModifiedTime(toWatch);
-                    log.debug("Config file " + toWatch + " last modified " + lastModified);
+                    log.info("Config file " + toWatch + " last modified " + lastModified+";; lastUpdate: " + lastUpdate);
+                    
+                    
                     if (lastModified.toMillis() > lastUpdate) {
-                        log.debug("Config file updated, reloading...");
+                        log.info("Config file updated, reloading...");
                         this.configurationManager.syncPersistent();
                         lastUpdate = lastModified.toMillis();
-                    }
+                    } else
+                    	log.info("@@! NOT reloading...");
                 } catch(IOException ioe) {
                     log.warn("Unexpected exception while watching config file, maybe file does not exist? ", ioe);
                 }

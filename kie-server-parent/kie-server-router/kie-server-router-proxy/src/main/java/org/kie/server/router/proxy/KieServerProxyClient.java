@@ -90,17 +90,28 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
             containerClients.put(containerId, client);
         }
 
+        log.info("@@ userProvidedTruststore:"+userProvidedTruststore);
+        log.info("@@ userProvidedTruststorePassword:"+userProvidedTruststorePassword);
+        
         if (!userProvidedTruststore.isEmpty() && !userProvidedTruststorePassword.isEmpty()) {
             try {
                 SSLContext context = SSLContextBuilder.builder().setKeyStorePath(userProvidedTruststore)
                         .setKeyStorePassword(userProvidedTruststorePassword).buildTrustore();
                 XnioSsl ssl = new UndertowXnioSsl(null, null, context);
+                log.info("@@ context:"+context);
+                log.info("@@ ssl:"+ssl);
+                log.info("@@ serverURI(s):"+serverURI);
                 client.addHost(serverURI, ssl);
+                log.info("@@ added Host with SSL");
+                
             } catch (final Exception e) {
+            	log.error("@@ Exception addhost:"+e.getMessage());
                 throw new RuntimeException(e);
             }
         } else {
+        	log.info("@@ serverURI:"+serverURI);
             client.addHost(serverURI);
+            log.info("@@ added Host without SSL");
         }
     }
 
@@ -136,15 +147,18 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
         String containerId = containerResolver.resolveContainerId(exchange, configurationManager.getConfiguration().getContainerInfosPerContainer());
         CaptureHostLoadBalancingProxyClient client = containerClients.get(containerId);
         try {
+        	log.info("@@ client.getConnection:"+target+ " ;; "+exchange);
             client.getConnection(target, exchange, new ProxyCallback<ProxyConnection>() {
                 @Override
                 public void completed(HttpServerExchange exchange, ProxyConnection result) {
+                	log.info("@@ completed:"+result);
                     callback.completed(exchange, result);
                 }
 
                 @Override
                 public void failed(HttpServerExchange httpServerExchange) {
                     try {
+                    	log.info("@@ failed disconnectFailedHost:"+client.getUri());
                         configurationManager.disconnectFailedHost(client.getUri());
                     } finally {
                         callback.failed(exchange);
@@ -154,20 +168,24 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
 
                 @Override
                 public void couldNotResolveBackend(HttpServerExchange exchange) {
+                	log.info("@@ couldNotResolveBackend:"+exchange);
                     callback.couldNotResolveBackend(exchange);
                 }
 
                 @Override
                 public void queuedRequestFailed(HttpServerExchange exchange) {
+                	log.info("@@ queuedRequestFailed:"+exchange);
                     callback.queuedRequestFailed(exchange);
                 }
             }, timeout, timeUnit);
         } catch (Exception e) {
+        	log.error("@@ Exception getConnection:"+e.getMessage());
             if (e instanceof SocketException
                     || e instanceof UnknownHostException
                     || e instanceof UnresolvedAddressException
                     // xnio throws IllegalArgumentException for unresolvable host
                     || e instanceof IllegalArgumentException) {
+            	log.error("@@ Exception disconnectFailedHost:"+client.getUri());
                 configurationManager.disconnectFailedHost(client.getUri());
             }
 
@@ -177,11 +195,13 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
 
     @Override
     public void onContainerAdded(String container, String serverUrl) {
+    	log.info("@@ onContainerAdded:"+container+ " ;; "+serverUrl);
         addContainer(container, URI.create(serverUrl));
     }
 
     @Override
     public void onContainerRemoved(String container, String serverUrl) {
+    	log.info("@@ onContainerRemoved:"+container+ " ;; "+serverUrl);
         removeContainer(container, URI.create(serverUrl));
     }
 }

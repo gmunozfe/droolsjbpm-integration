@@ -40,13 +40,30 @@ public class FileRepository implements ConfigRepository {
     @Override
     public void persist(Configuration configuration) {
 
-        File configFile = new File(repositoryDir, "kie-server-router.json");
-        try (FileOutputStream fos = new FileOutputStream(configFile)) {
-            
+    	File configFile = null;
+    	try {
+            configFile = new File(repositoryDir, "kie-server-router.json");
+        } catch(Exception e) {
+        	log.error("@@$$@@ Could not getFile {0}", repositoryDir, e);
+        }
+    	log.info("@@$$@@>> configFile "+configFile);
+    	
+    	try {
+    		FileOutputStream fos2 = new FileOutputStream(configFile);
+    	} catch(Exception ee) {
+    		 log.error("@@$$@@ Could not new {0}", configFile, ee);
+    	}
+    	
+    	
+    	try (FileOutputStream fos = new FileOutputStream(configFile)) {
+    		log.info("@@$$@@ before marshall configFile "+configFile);
             String config = marshaller.marshall(configuration);
-
+            log.info("@@$$@@ after marshall config "+config);
             try (PrintWriter writer = new PrintWriter(fos)) {
                 writer.write(config);
+                log.info("@@$$@@ after write");
+            } catch(Exception exc){
+            	log.error("@@$$@@ Could write", exc);
             }
 
             configFile.setLastModified(System.currentTimeMillis());
@@ -59,8 +76,16 @@ public class FileRepository implements ConfigRepository {
     @Override
     public Configuration load() {
         Configuration configuration = new Configuration();
-        File serverStateFile = new File(repositoryDir, "kie-server-router.json");
+        
+        File serverStateFile = null;
+    	try {
+    		serverStateFile = new File(repositoryDir, "kie-server-router.json");
+        } catch(Exception e) {
+        	log.error("@@$$@@ Could not getFile serverStateFile {0}", repositoryDir, e);
+        }
+    	log.info("@@$$@@ serverStateFile.exists() "+serverStateFile);
         if (serverStateFile.exists()) {
+        	log.info("@@$$@@ serverStateFile.exists() YES "+serverStateFile);
             try (FileReader reader = new FileReader(serverStateFile)){
                 configuration = marshaller.unmarshall(reader);
             } catch (Exception e) {

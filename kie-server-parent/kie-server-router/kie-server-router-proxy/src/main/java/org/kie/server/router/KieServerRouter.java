@@ -187,7 +187,9 @@ public class KieServerRouter {
         }
 
         // setup config file watcher to be updated when changes are discovered
+        log.info("@@! Check isConfigFileWatcherEnabled");
         if (environment().isConfigFileWatcherEnabled()) {
+        	 log.info("@@! Check isConfigFileWatcherEnabled TRUE");
             configurationManager.startWatcher();
         }
 
@@ -324,13 +326,16 @@ public class KieServerRouter {
             return;
         }
         try {
+        	log.infof("@@@ Controller URL :: %s", environment().getKieControllerUrl() + "/server/" + environment().getRouterId());
+        	log.infof("@@@ Controller body :: %s", buildServerInfo(environment()));
             String jsonResponse = HttpUtils.putHttpCall(environment(), environment().getKieControllerUrl() + "/server/" + environment().getRouterId(),  buildServerInfo(environment()));
-            log.debugf("Controller response :: ", jsonResponse);
+            log.infof("Controller response :: %s", jsonResponse);
             boostrapFromControllerResponse(configurationManager, jsonResponse);
             log.infof("KieServerRouter connected to controller at " + environment().getKieControllerUrl());
         } catch (Exception e) {
             log.error("Error when connecting to controller at " + environment().getKieControllerUrl() + " due to " + e.getMessage());
-            log.debug(e);
+            log.error(e);
+            e.printStackTrace();
             controllerConnectionAttempts = executorService.scheduleAtFixedRate(() -> tryToConnectToController(configurationManager),
                     environment().getKieControllerAttemptInterval(),
                     environment().getKieControllerAttemptInterval(),

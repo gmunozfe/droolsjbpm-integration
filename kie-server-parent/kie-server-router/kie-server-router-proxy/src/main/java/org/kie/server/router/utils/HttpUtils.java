@@ -61,7 +61,6 @@ public class HttpUtils {
         con.setRequestProperty(Headers.ACCEPT_STRING, "application/json");
         con.setRequestProperty(Headers.CONTENT_TYPE_STRING, "application/json");
         con.setRequestProperty(Headers.AUTHORIZATION_STRING, getAuthorization(env));
-
         con.setDoOutput(true);
 
         log.debugf("Sending 'GET' request to URL : %s", controllerURL);

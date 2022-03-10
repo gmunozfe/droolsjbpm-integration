@@ -69,6 +69,7 @@ public class KieServerRouterEventListener implements KieServerEventListener {
 
 
     public KieServerRouterEventListener() {
+    	logger.info("@@ EMPTY CONSTRUCTOR serverURL '{}' routerURL '{}' serverId '{}'", serverURL, routerURL, serverId);
     }
 
     public KieServerRouterEventListener(String serverId, String serverURL, String routerURL, int failedAttemptsInterval) {
@@ -76,6 +77,8 @@ public class KieServerRouterEventListener implements KieServerEventListener {
         this.serverURL = serverURL;
         this.routerURL = routerURL;
         this.failedAttemptsInterval = failedAttemptsInterval;
+        logger.info("@@ CONSTRUCTOR serverURL '{}' routerURL '{}' serverId '{}'", serverURL, routerURL, serverId);
+        
     }
 
     @Override
@@ -124,10 +127,11 @@ public class KieServerRouterEventListener implements KieServerEventListener {
         
         routers().forEach(url -> {
             String alias = getContainerAlias(containerInstance.getResource());
+            logger.info("@@%% serverURL '{}' container id '{}' alias '{}' serverId '{}'", serverURL, containerInstance.getContainerId(), alias, serverId);
             String containerIdPayload = "{" + MessageFormat.format(CONTAINER_JSON, containerInstance.getContainerId(), alias, serverURL, serverId, containerInstance.getResource().getReleaseId().toExternalForm()) + "}";
             boolean success = send(url + ROUTER_ADD_URL, containerInstance.getContainerId(), containerIdPayload, true, true);
             if (success) {
-                logger.info("Added '{}' as server location for container id '{}'", serverURL, containerInstance.getContainerId());
+                logger.info("@@%% Added '{}' as server location for container id '{}'", serverURL, containerInstance.getContainerId());
             }
         });
     }

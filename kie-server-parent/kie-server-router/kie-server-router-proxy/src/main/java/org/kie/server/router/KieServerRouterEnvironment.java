@@ -193,7 +193,21 @@ public class KieServerRouterEnvironment {
         return keystoreKey;
     }
 
-    public String getRepositoryDir() {
+    @Override
+	public String toString() {
+		return "@@! KieServerRouterEnvironment [routerId=" + routerId + ", routerName=" + routerName + ", routerHost="
+				+ routerHost + ", port=" + port + ", sslPort=" + sslPort + ", routerExternalUrl=" + routerExternalUrl
+				+ ", tlsEnabled=" + tlsEnabled + ", keystorePath=" + keystorePath + ", keystorePassword="
+				+ keystorePassword + ", keystoreKey=" + keystoreKey + ", repositoryDir=" + repositoryDir
+				+ ", identityProvider=" + identityProvider + ", kieControllerUrl=" + kieControllerUrl
+				+ ", kieControllerUser=" + kieControllerUser + ", kieControllerPwd=" + kieControllerPwd
+				+ ", kieControllerToken=" + kieControllerToken + ", configFileWatcherEnabled="
+				+ configFileWatcherEnabled + ", configFileWatcherInterval=" + configFileWatcherInterval
+				+ ", kieControllerAttemptInterval=" + kieControllerAttemptInterval
+				+ ", kieControllerRecoveryAttemptLimit=" + kieControllerRecoveryAttemptLimit + ", managementPassword="
+				+ managementPassword + "]";
+	}
+	public String getRepositoryDir() {
         return repositoryDir;
     }
 

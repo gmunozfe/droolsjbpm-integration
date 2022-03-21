@@ -18,7 +18,6 @@ package org.kie.server.router;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,23 +61,17 @@ public class Configuration {
     }
 
     public void addContainerHost(String containerId, String serverUrl) {
-        List<String> hosts = hostsPerContainer.get(containerId);
-        if (hosts == null) {
-            hosts = new ArrayList<>();
-            hostsPerContainer.put(containerId, hosts);
-        }
-        hosts.add(serverUrl);
-
+        List<String> list = hostsPerContainer.computeIfAbsent(containerId, x -> new ArrayList<>());
+        if (!list.contains(serverUrl))
+          list.add(serverUrl);
+        
         this.listeners.forEach(l -> l.onContainerAdded(containerId, serverUrl));
     }
     
     public void addServerHost(String serverId, String serverUrl) {
-        List<String> hosts = hostsPerServer.get(serverId);
-        if (hosts == null) {
-            hosts = new ArrayList<>();
-            hostsPerServer.put(serverId, hosts);
-        }
-        hosts.add(serverUrl);
+        List<String> list = hostsPerServer.computeIfAbsent(serverId, x -> new ArrayList<>());
+        if (!list.contains(serverUrl))
+            list.add(serverId);
 
         this.listeners.forEach(l -> l.onServerAdded(serverId, serverUrl));
     }

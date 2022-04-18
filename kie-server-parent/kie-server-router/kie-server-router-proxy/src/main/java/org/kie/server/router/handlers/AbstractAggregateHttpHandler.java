@@ -21,6 +21,7 @@ import java.net.HttpURLConnection;
 import java.net.SocketException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashSet;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
 
@@ -110,6 +112,7 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
         List<String> returnResponses = getServerHosts().parallelStream().map(url -> {
             String response = null;
             try {
+            	
                 response = sendRequest(url, exchange, responseHeaders, routerPage, routerPageSize);
             } catch (Exception e) {
                 log.error("Error when forwarding request to server", e);
@@ -176,7 +179,7 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
     }
 
     protected String sendRequest(String url, HttpServerExchange exchange, Map<String,List<String>> responseHeaders, String page, String pageSize) throws Exception {
-
+    	log.info("@@@>>> sendRequest to url :"+url);
         URL obj = new URL(url + exchange.getRequestPath() + "?" + exchange.getQueryString().replaceAll(REPLACE_PAGE, "page=" + page).replaceAll(REPLACE_PAGE_SIZE, "pageSize="+pageSize));
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
         con.setRequestMethod("GET");
@@ -246,17 +249,25 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
     }
 
     protected Set<String> getServerHosts() {
-        return configurationManager.getConfiguration().getHostsPerServer().values().stream().map(hosts -> {
+    	List<List<String>> h = configurationManager.getConfiguration().getHostsPerServer().values().stream().collect(Collectors.toList());
+    	log.info("@@@ getServerHosts getHostsPerServer: "+h);
+        Set<String> ret = configurationManager.getConfiguration().getHostsPerServer().values().stream().map(hosts -> {
             Set<String> uniqueHosts = new LinkedHashSet<>(hosts);
-            return selector.selectHost(uniqueHosts.toArray(new String[uniqueHosts.size()]));
+            log.info("@@@ getServerHosts uniqueHosts: "+uniqueHosts);
+            String sel = selector.selectHost(uniqueHosts.toArray(new String[uniqueHosts.size()]));
+            log.info("@@@ getServerHosts sel: "+sel);
+            return sel;
         }).filter(host -> host != null)
          .collect(Collectors.toSet());
+        log.info("@@@ getServerHosts return: "+ret);
+        return ret;
     }
 
     protected void removeHostOnException(String url, Exception e) {
         if (e instanceof SocketException || e instanceof UnknownHostException || e instanceof SSLException) {
             configurationManager.disconnectFailedHost(url);
             log.warn("Removed host '" + url + "' due to its unavailability (cause " + e.getMessage() + ")");
+            e.printStackTrace();
         }
     }
 
@@ -270,11 +281,15 @@ public abstract class AbstractAggregateHttpHandler implements HttpHandler {
 
 
         public String selectHost(String[] availableHosts) {
+        	log.info("@@@ currentHost: "+currentHost);
+        	log.info("@@@ availableHosts: "+availableHosts);
             if (availableHosts.length == 0) {
                 return null;
             }
             int hostIndex = currentHost.incrementAndGet() % availableHosts.length;
 
+            log.info("@@@ hostIndex: "+hostIndex);
+            log.info("@@@ selectHost: "+availableHosts[hostIndex]);
             return availableHosts[hostIndex];
         }
     }

@@ -15,19 +15,28 @@
 
 package org.kie.server.router.proxy;
 
+import org.jboss.logging.Logger;
+
+
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.proxy.LoadBalancingProxyClient;
 
 public class CaptureHostLoadBalancingProxyClient extends LoadBalancingProxyClient {
+	
+	protected static final Logger log = Logger.getLogger(CaptureHostLoadBalancingProxyClient.class);
     private String uri = null;
     @Override
     protected Host selectHost(HttpServerExchange exchange) {
+    	
+    	log.info("@@@>>> select host input "+exchange);
         Host host = super.selectHost(exchange);
 
         if (host != null) {
             uri = host.getUri().toString();
         }
 
+        log.info("@@@>>> selectHost uri "+uri);
+        log.info("@@@>>> selectHost return "+host);
         return host;
     }
 

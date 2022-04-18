@@ -22,6 +22,7 @@ import java.nio.channels.UnresolvedAddressException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -90,16 +91,19 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
             containerClients.put(containerId, client);
         }
 
+        log.info("@@@>> addContainer["+containerId+"] userProvidedTruststore: "+userProvidedTruststore+ " ;;; userProvidedTruststorePassword: "+userProvidedTruststorePassword+ ";;; serverURI: "+serverURI);
         if (!userProvidedTruststore.isEmpty() && !userProvidedTruststorePassword.isEmpty()) {
             try {
                 SSLContext context = SSLContextBuilder.builder().setKeyStorePath(userProvidedTruststore)
                         .setKeyStorePassword(userProvidedTruststorePassword).buildTrustore();
                 XnioSsl ssl = new UndertowXnioSsl(null, null, context);
+                log.info("@@@>> addContainer (SSL) "+containerId+ " ;;; serverURI: "+serverURI+ ";;; ssl: "+ssl);
                 client.addHost(serverURI, ssl);
             } catch (final Exception e) {
                 throw new RuntimeException(e);
             }
         } else {
+        	log.info("@@@>> addContainer (NO-SSL) "+containerId+ " ;;; serverURI: "+serverURI);
             client.addHost(serverURI);
         }
     }
@@ -168,6 +172,8 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
                     || e instanceof UnresolvedAddressException
                     // xnio throws IllegalArgumentException for unresolvable host
                     || e instanceof IllegalArgumentException) {
+            	log.warn("@@ getConnection exception '" + exchange + "' ; target: "+target+" ;; due to cause: " + e.getMessage());
+                e.printStackTrace();
                 configurationManager.disconnectFailedHost(client.getUri());
             }
 
@@ -178,6 +184,10 @@ public class KieServerProxyClient implements ProxyClient, ConfigurationListener 
     @Override
     public void onContainerAdded(String container, String serverUrl) {
         addContainer(container, URI.create(serverUrl));
+        log.info("@@@>> onContainerAdded ["+container+"]::: "+containerClients.get(container));
+        for (Entry<String, CaptureHostLoadBalancingProxyClient> entry : containerClients.entrySet()) {
+        	log.info("@@@>> onContainerAdded {"+entry.getKey() + "  ,,,  " + entry.getValue()+"}");
+        }
     }
 
     @Override

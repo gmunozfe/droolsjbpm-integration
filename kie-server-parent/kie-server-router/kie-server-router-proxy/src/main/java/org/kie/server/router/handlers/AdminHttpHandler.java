@@ -73,6 +73,8 @@ public class AdminHttpHandler implements HttpHandler {
                 }
             } catch (Exception e) {
                 log.error("Error while performing admin operation", e);
+                e.printStackTrace();
+                log.error("@@EXCEPTION while performing admin operation  "+e.getMessage());
                 
             }
         });

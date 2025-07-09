@@ -34,6 +34,9 @@ public class CaseUserTaskWithVariables {
     @XmlElement(name = "name")
     private String name;
 
+    @XmlElement(name = "description")
+    private String description;
+
     @XmlElement(name = "actual-owner")
     private String actualOwner;
 
@@ -61,6 +64,9 @@ public class CaseUserTaskWithVariables {
     @XmlElement(name = "case-instance-variables")
     private Map<String, Object> caseVariables;
 
+    @XmlElement(name = "status")
+    private String status;
+
     public Long getId() {
         return id;
     }
@@ -75,6 +81,14 @@ public class CaseUserTaskWithVariables {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getActualOwner() {
@@ -150,11 +164,21 @@ public class CaseUserTaskWithVariables {
         this.processInstanceId = processInstanceId;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     @Override
     public String toString() {
-        return "CaseUserTaskWithVariables [id=" + id + ", name=" + name + ", actualOwner=" + actualOwner + ", correlationKey=" + correlationKey + ", potentialOwners=" + potentialOwners + ", caseDefinitionId=" +
-               caseDefinitionId + ", processInstanceId=" + processInstanceId + ", caseId=" + caseId + ", inputVariables=" + inputVariables + ", processVariables=" + processVariables + ", caseVariables=" + caseVariables +
-               "]";
+        return "CaseUserTaskWithVariables [id=" + id + ", name=" + name + ", description=" + description +", actualOwner=" + actualOwner
+                + ", correlationKey=" + correlationKey + ", potentialOwners=" + potentialOwners + ", caseDefinitionId=" + caseDefinitionId
+                + ", processInstanceId=" + processInstanceId + ", caseId=" + caseId + ", inputVariables=" + inputVariables
+                + ", processVariables=" + processVariables + ", caseVariables=" + caseVariables + "]";
     }
+
 
 }

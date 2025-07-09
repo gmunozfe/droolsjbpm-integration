@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.kie.server</groupId>
     <artifactId>kie-server-tests</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-server-integ-tests-router</artifactId>
@@ -17,55 +17,21 @@
     <org.drools.server.ext.disabled>false</org.drools.server.ext.disabled>
     <org.jbpm.server.ext.disabled>false</org.jbpm.server.ext.disabled>
   </properties>
-  
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.github.tomakehurst</groupId>
-        <artifactId>wiremock</artifactId>
-        <version>${version.com.github.tomakehurst.wiremock}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
+    <!-- Common Kie server test classes -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-integ-tests-common</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.activation</groupId>
-          <artifactId>activation</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
-    
-    <!-- core deps -->
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-compiler</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-ci</artifactId>
-      <scope>test</scope>
-    </dependency>
-    
+
     <!-- kie server deps -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-api</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.activation</groupId>
-          <artifactId>activation</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
-
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-client</artifactId>
@@ -96,98 +62,14 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- REST --> 
+    <!-- Needed for DBExternalResource -->
     <dependency>
-      <groupId>org.jboss.spec.javax.servlet</groupId>
-      <artifactId>jboss-servlet-api_3.1_spec</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>tjws</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-   <!--  Stay with httpcomponents: it will save us pain (as opposed to changing from resteasy to cxf to cxf 3.0, etc. --> 
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>fluent-hc</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- Replacement for the above excluded 'commons-logging:commons-logging' -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
+      <groupId>org.kie</groupId>
+      <artifactId>kie-test-util</artifactId>
       <scope>test</scope>
     </dependency>
 
-    <!-- persistence --> 
-    <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-entitymanager</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>xml-apis</groupId>
-          <artifactId>xml-apis</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.h2database</groupId>
-      <artifactId>h2</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.narayana.jta</groupId>
-      <artifactId>narayana-jta</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jbpm</groupId>
-      <artifactId>jbpm-test-util</artifactId>
-      <scope>test</scope>
-    </dependency>
-    
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-embedder</artifactId>
-      <scope>test</scope>
-    </dependency>
-
+    <!-- Deployments for application servers -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server</artifactId>
@@ -209,17 +91,12 @@
       <type>war</type>
       <scope>test</scope>
     </dependency>
-    
+
+    <!-- User to mock Kie server and controller responses -->
     <dependency>
       <groupId>com.github.tomakehurst</groupId>
       <artifactId>wiremock</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <!-- This is an artificial dependency to make sure the kie-server-tests modules are executed one at a time during
@@ -289,7 +166,7 @@
     <plugins>
       <plugin>
         <groupId>org.codehaus.cargo</groupId>
-        <artifactId>cargo-maven2-plugin</artifactId>
+        <artifactId>cargo-maven3-plugin</artifactId>
         <configuration>
           <container>
             <systemProperties>
@@ -301,6 +178,7 @@
               <!-- router based configuration -->
               <org.kie.server.router>${kie.server.router.url}</org.kie.server.router>
               <org.kie.server.location>${kie.server.base.http.url}</org.kie.server.location>
+              <org.kie.server.services.jbpm.security.filesystemrealm.folder-path>${project.basedir}/target/cargo/configurations/wildfly23x/kie-fs-realm-users</org.kie.server.services.jbpm.security.filesystemrealm.folder-path>
             </systemProperties>
           </container>
         </configuration>
@@ -319,27 +197,11 @@
           <groupId>org.kie.server</groupId>
           <artifactId>kie-server-services-common</artifactId>
           <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>javax.xml.stream</groupId>
-              <artifactId>stax-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>javax.activation</groupId>
-              <artifactId>activation</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.kie.server</groupId>
           <artifactId>kie-server-services-drools</artifactId>
           <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>javax.activation</groupId>
-              <artifactId>activation</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.kie.server</groupId>
@@ -368,27 +230,77 @@
           <scope>test</scope>
         </dependency>
 
+        <!-- Needed for jBPM persistence -->
+        <dependency>
+          <groupId>com.h2database</groupId>
+          <artifactId>h2</artifactId>
+          <scope>test</scope>
+        </dependency>
+        <!-- Contains org.jbpm.test.util.CloseSafeMemoryContextFactory used as a context factory for local tests -->
         <dependency>
           <groupId>org.jbpm</groupId>
-          <artifactId>jbpm-case-mgmt-impl</artifactId>
+          <artifactId>jbpm-test-util</artifactId>
           <scope>test</scope>
+        </dependency>
+        <!-- Excluding javax.activation-api as it collides with javax.activation:activation -->
+        <dependency>
+          <groupId>org.hibernate</groupId>
+          <artifactId>hibernate-core</artifactId>
+          <scope>test</scope>
+          <exclusions>
+            <!-- collides with com.sun.xml.bind:jaxb-impl:jar:2.3.0 and com.sun.xml.bind:jaxb-impl:jar:2.3.0 -->
+            <exclusion>
+              <groupId>org.glassfish.jaxb</groupId>
+              <artifactId>jaxb-runtime</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>
     <profile>
       <id>tomcat9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>tomcat9</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>wildfly</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>wildfly</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>eap7</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>eap7</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>oracle-wls-12</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>oracle-wls-12</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>websphere9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>websphere9</value>
+        </property>
+      </activation>
     </profile>
   </profiles>
 </project>

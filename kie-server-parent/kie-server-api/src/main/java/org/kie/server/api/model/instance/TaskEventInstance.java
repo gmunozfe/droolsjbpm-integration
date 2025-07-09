@@ -50,9 +50,16 @@ public class TaskEventInstance {
 
     @XmlElement(name = "task-event-message")
     private String message;
+    
 
-    public TaskEventInstance() {
-    }
+    @XmlElement(name = "correlation-key")
+    private String correlationKey;
+
+    @XmlElement(name = "process-type")
+    private Integer processType;
+
+    @XmlElement(name = "assigned-owner")
+    private String assignedOwner;
 
     public static Builder builder() {
         return new Builder();
@@ -114,6 +121,26 @@ public class TaskEventInstance {
         this.workItemId = workItemId;
     }
 
+    
+    public String getCorrelationKey() {
+        return correlationKey;
+    }
+
+    
+    public void setCorrelationKey(String correlationKey) {
+        this.correlationKey = correlationKey;
+    }
+
+    
+    public Integer getProcessType() {
+        return processType;
+    }
+
+    
+    public void setProcessType(Integer processType) {
+        this.processType = processType;
+    }
+
     public String getMessage() {
         return message;
     }
@@ -122,18 +149,18 @@ public class TaskEventInstance {
         this.message = message;
     }
 
+    public String getAssignedOwner() {
+        return assignedOwner;
+    }
+
+    public void setAssignedOwner(String actualOwner) {
+        this.assignedOwner = actualOwner;
+    }
+
     @Override
     public String toString() {
-        return "TaskEventInstance{" +
-                "id=" + id +
-                ", taskId=" + taskId +
-                ", type='" + type + '\'' +
-                ", userId='" + userId + '\'' +
-                ", logTime=" + logTime +
-                ", processInstanceId=" + processInstanceId +
-                ", workItemId=" + workItemId +
-                ", message=" + message +
-                '}';
+        return "TaskEventInstance [id=" + id + ", taskId=" + taskId + ", type=" + type + ", userId=" + userId + ", logTime=" + logTime + ", processInstanceId=" + processInstanceId + ", workItemId=" + workItemId +
+               ", message=" + message + ", correlationKey=" + correlationKey + ", processType=" + processType + ", actualOwner=" + assignedOwner + "]";
     }
 
     public static class Builder {
@@ -174,6 +201,16 @@ public class TaskEventInstance {
             return this;
         }
 
+        public Builder correlationKey(String correlationKey) {
+            taskEventInstance.setCorrelationKey(correlationKey);
+            return this;
+        }
+
+        public Builder processType (Integer processType) {
+            taskEventInstance.setProcessType(processType);
+            return this;
+        }
+
         public Builder date(Date date) {
             taskEventInstance.setLogTime(date == null ? date : new Date(date.getTime()));
             return this;
@@ -181,6 +218,11 @@ public class TaskEventInstance {
 
         public Builder message(String message) {
             taskEventInstance.setMessage(message);
+            return this;
+        }
+        
+        public Builder assignedOwner (String actualOwner) {
+            taskEventInstance.setAssignedOwner(actualOwner);
             return this;
         }
     }

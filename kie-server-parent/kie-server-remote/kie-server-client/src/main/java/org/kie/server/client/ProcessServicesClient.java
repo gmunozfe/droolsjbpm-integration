@@ -57,9 +57,15 @@ public interface ProcessServicesClient {
 
     Long startProcess(String containerId, String processId, Map<String, Object> variables);
 
+    Map<String, Object> computeProcessOutcome(String containerId, String processId, Map<String, Object> variables);
+
     Long startProcess(String containerId, String processId, CorrelationKey correlationKey);
 
     Long startProcess(String containerId, String processId, CorrelationKey correlationKey, Map<String, Object> variables);
+
+    Long startProcessFromNodeIds(String containerId, String processId, Map<String, Object> variables, String... nodes);
+
+    Long startProcessFromNodeIds(String containerId, String processId, CorrelationKey correlationKey, Map<String, Object> variables, String... nodes);
 
     void abortProcessInstance(String containerId, Long processInstanceId);
 
@@ -74,6 +80,10 @@ public interface ProcessServicesClient {
     void signalProcessInstance(String containerId, Long processInstanceId, String signalName, Object event);
 
     void signalProcessInstances(String containerId, List<Long> processInstanceId, String signalName, Object event);
+
+    void signalProcessInstanceByCorrelationKey(String containerId, CorrelationKey correlationKey, String signalName, Object event);
+
+    void signalProcessInstancesByCorrelationKeys(String containerId, List<CorrelationKey> correlationKeys, String signalName, Object event);
 
     void signal(String containerId, String signalName, Object event);
 
@@ -101,6 +111,8 @@ public interface ProcessServicesClient {
 
     List<NodeInstance> findNodeInstances(String containerId, Long processInstanceId, Integer page, Integer pageSize);
 
+    List<NodeInstance> findNodeInstancesByType(String containerId, Long processInstanceId, String entryType, Integer page, Integer pageSize);
+
     List<VariableInstance> findVariablesCurrentState(String containerId, Long processInstanceId);
 
     List<VariableInstance> findVariableHistory(String containerId, Long processInstanceId, String variableName, Integer page, Integer pageSize);
@@ -116,4 +128,5 @@ public interface ProcessServicesClient {
     List<ProcessInstance> findProcessInstances(String containerId, Integer page, Integer pageSize);
 
     List<ProcessInstance> findProcessInstances(String containerId, Integer page, Integer pageSize, String sort, boolean sortOrder);
+
 }

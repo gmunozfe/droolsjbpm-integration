@@ -31,6 +31,7 @@ import org.kie.server.api.model.ServiceResponse;
 import org.kie.server.api.model.Wrapped;
 import org.kie.server.api.model.admin.ExecutionErrorInstance;
 import org.kie.server.api.model.admin.ExecutionErrorInstanceList;
+import org.kie.server.api.model.definition.CountDefinition;
 import org.kie.server.api.model.definition.ProcessDefinition;
 import org.kie.server.api.model.definition.ProcessDefinitionList;
 import org.kie.server.api.model.definition.ProcessInstanceQueryFilterSpec;
@@ -70,6 +71,7 @@ import static org.kie.server.api.rest.RestURI.PROCESS_DEFINITIONS_BY_CONTAINER_I
 import static org.kie.server.api.rest.RestURI.PROCESS_DEFINITIONS_BY_ID_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_DEFINITIONS_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_ID;
+import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_BY_CONTAINER_ID_COUNT_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_BY_CONTAINER_ID_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_BY_CORRELATION_KEY_GET_URI;
 import static org.kie.server.api.rest.RestURI.PROCESS_INSTANCES_BY_PROCESS_ID_GET_URI;
@@ -110,8 +112,7 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
             Map<String, Object> valuesMap = new HashMap<String, Object>();
             valuesMap.put(PROCESS_ID, processId);
 
-            result = makeHttpGetRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_DEFINITIONS_BY_ID_GET_URI, valuesMap), ProcessDefinitionList.class);
-
+            result = makeHttpGetRequestAndCreateCustomResponseWithHandleNotFound(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_DEFINITIONS_BY_ID_GET_URI, valuesMap), ProcessDefinitionList.class);
         } else {
             CommandScript script = new CommandScript(Collections.singletonList((KieServerCommand) new DescriptorCommand("QueryService", "getProcessesById", new Object[]{processId})));
             ServiceResponse<ProcessDefinitionList> response = (ServiceResponse<ProcessDefinitionList>) executeJmsCommand(script, DescriptorCommand.class.getName(), "BPM").getResponses().get(0);
@@ -234,7 +235,7 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
 
             String queryString = getPagingQueryString("?sort=" + sort + "&sortOrder=" + sortOrder, page, pageSize);
 
-            result = makeHttpGetRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_DEFINITIONS_BY_CONTAINER_ID_GET_URI, valuesMap) + queryString, ProcessDefinitionList.class);
+            result = makeHttpGetRequestAndCreateCustomResponseWithHandleNotFound(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_DEFINITIONS_BY_CONTAINER_ID_GET_URI, valuesMap) + queryString, ProcessDefinitionList.class);
 
         } else {
             CommandScript script = new CommandScript(Collections.singletonList((KieServerCommand) new DescriptorCommand("QueryService", "getProcessesByDeploymentId", new Object[]{containerId, page, pageSize, sort, sortOrder})));
@@ -460,7 +461,7 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
             String statusQueryString = getAdditionalParams("?sort=" + sort + "&sortOrder=" + sortOrder, "status", status);
             String queryString = getPagingQueryString(statusQueryString, page, pageSize);
 
-            result = makeHttpGetRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_INSTANCES_BY_CONTAINER_ID_GET_URI, valuesMap) + queryString, ProcessInstanceList.class);
+            result = makeHttpGetRequestAndCreateCustomResponseWithHandleNotFound(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_INSTANCES_BY_CONTAINER_ID_GET_URI, valuesMap) + queryString, ProcessInstanceList.class);
 
         } else {
             CommandScript script = new CommandScript(Collections.singletonList((KieServerCommand) new DescriptorCommand("QueryService", "getProcessInstancesByDeploymentId", new Object[]{containerId, safeList(status), page, pageSize, sort, sortOrder})));
@@ -478,6 +479,32 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
         }
 
         return Collections.emptyList();
+    }
+
+    public Long countProcessInstancesByContainerId(String containerId, List<Integer> status) {
+        CountDefinition result;
+        if (config.isRest()) {
+            Map<String, Object> valuesMap = new HashMap<>();
+            valuesMap.put(CONTAINER_ID, containerId);
+
+            String queryString = getAdditionalParams("", "status", status);
+            result = makeHttpGetRequestAndCreateCustomResponseWithHandleNotFound(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_INSTANCES_BY_CONTAINER_ID_COUNT_URI, valuesMap) + queryString, CountDefinition.class);
+        } else {
+            CommandScript script = new CommandScript(Collections.singletonList(new DescriptorCommand("QueryService", "countProcessInstancesByDeploymentId", new Object[]{containerId, safeList(status)})));
+            ServiceResponse<CountDefinition> response = (ServiceResponse<CountDefinition>) executeJmsCommand(script, DescriptorCommand.class.getName(), "BPM").getResponses().get(0);
+
+            throwExceptionOnFailure(response);
+            if (shouldReturnWithNullResponse(response)) {
+                return null;
+            }
+            result = response.getResult();
+        }
+
+        if (result != null) {
+            return result.getCount();
+        }
+
+        return null;
     }
 
     @Override
@@ -574,7 +601,7 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
             Map<String, Object> valuesMap = new HashMap<String, Object>();
             valuesMap.put(VAR_NAME, variableName);
 
-            String statusQueryString = getAdditionalParams("?varValue=" + variableValue + "&sort=" + sort + "&sortOrder=" + sortOrder, "status", status);
+            String statusQueryString = getAdditionalParams("?varValue=" + RestURI.encode(variableValue) + "&sort=" + sort + "&sortOrder=" + sortOrder, "status", status);
             String queryString = getPagingQueryString(statusQueryString, page, pageSize);
 
             result = makeHttpGetRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" + PROCESS_INSTANCE_BY_VAR_NAME_GET_URI, valuesMap) + queryString, ProcessInstanceList.class);
@@ -896,7 +923,7 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
 
         } else {
             CommandScript script = new CommandScript(Collections.singletonList((KieServerCommand) new DescriptorCommand("QueryDataService", "unregisterQuery", new Object[]{queryName})));
-            ServiceResponse<?> response = (ServiceResponse<?>) executeJmsCommand(script, DescriptorCommand.class.getName(), "BPM").getResponses().get(0);
+            ServiceResponse<?> response = executeJmsCommand(script, DescriptorCommand.class.getName(), "BPM").getResponses().get(0);
             throwExceptionOnFailure(response);
         }
     }
@@ -960,7 +987,7 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
             Map<String, Object> valuesMap = new HashMap<String, Object>();
             valuesMap.put(QUERY_NAME, queryName);
 
-            String queryString = getPagingQueryString("?mapper=" + mapper + "&orderBy=" + orderBy, page, pageSize);
+            String queryString = getPagingQueryString("?mapper=" + mapper + "&orderBy=" + RestURI.encode(orderBy), page, pageSize);
             result = makeHttpGetRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_DEF_URI + "/" + RUN_QUERY_DEF_GET_URI, valuesMap) + queryString, resultTypeList);
 
         } else {
@@ -1188,11 +1215,19 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
     }
 
     @Override
-    public List<ProcessInstanceCustomVars> queryProcessesByVariables(SearchQueryFilterSpec spec, Integer page, Integer pageSize) {
+    public List<ProcessInstanceCustomVars> queryProcessesByVariables(SearchQueryFilterSpec spec,
+                                                                     Integer page,
+                                                                     Integer pageSize,
+                                                                     String orderBy,
+                                                                     boolean asc) {
         if (config.isRest()) {
             String queryString = getPagingQueryString("", page, pageSize);
-            return makeHttpPostRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" + RestURI.VARIABLES_PROCESSES_URI + queryString, Collections.emptyMap()), spec,
-                                                              ProcessInstanceCustomVarsList.class).getItems();
+            queryString = getSortingQueryString(queryString, orderBy, asc);
+            return makeHttpPostRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" +
+                                                                                           RestURI.VARIABLES_PROCESSES_URI +
+                                                                                           queryString, Collections
+                                                                                                   .emptyMap()), spec,
+                    ProcessInstanceCustomVarsList.class).getItems();
         } else {
             throw new UnsupportedOperationException("JMS Not supported for this operation");
         }
@@ -1200,15 +1235,37 @@ public class QueryServicesClientImpl extends AbstractKieServicesClientImpl imple
     }
 
     @Override
-    public List<ProcessInstanceUserTaskWithVariables> queryUserTaskByVariables(SearchQueryFilterSpec spec, Integer page, Integer pageSize) {
+    public List<ProcessInstanceUserTaskWithVariables> queryUserTaskByVariables(SearchQueryFilterSpec spec,
+                                                                               Integer page,
+                                                                               Integer pageSize,
+                                                                               String orderBy,
+                                                                               boolean asc) {
         if (config.isRest()) {
             String queryString = getPagingQueryString("", page, pageSize);
-            return makeHttpPostRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" + RestURI.VARIABLES_TASKS_PROCESSES_URI + queryString, Collections.emptyMap()), spec,
-                                                              ProcessInstanceUserTaskWithVariablesList.class).getItems();
+            queryString = getSortingQueryString(queryString, orderBy, asc);
+            return makeHttpPostRequestAndCreateCustomResponse(build(loadBalancer.getUrl(), QUERY_URI + "/" +
+                                                                                           RestURI.VARIABLES_TASKS_PROCESSES_URI +
+                                                                                           queryString, Collections
+                                                                                                   .emptyMap()), spec,
+                    ProcessInstanceUserTaskWithVariablesList.class).getItems();
         } else {
             throw new UnsupportedOperationException("JMS Not supported for this operation");
         }
 
+    }
+
+    @Override
+    public List<ProcessInstanceCustomVars> queryProcessesByVariables(SearchQueryFilterSpec spec,
+                                                                     Integer page,
+                                                                     Integer pageSize) {
+        return queryProcessesByVariables(spec, page, pageSize, null, false);
+    }
+
+    @Override
+    public List<ProcessInstanceUserTaskWithVariables> queryUserTaskByVariables(SearchQueryFilterSpec spec,
+                                                                               Integer page,
+                                                                               Integer pageSize) {
+        return queryUserTaskByVariables(spec, page, pageSize, null, false);
     }
 
 }

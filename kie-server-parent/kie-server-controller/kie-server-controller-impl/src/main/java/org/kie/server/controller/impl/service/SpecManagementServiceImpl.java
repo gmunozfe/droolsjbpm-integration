@@ -58,6 +58,10 @@ public class SpecManagementServiceImpl implements SpecManagementService {
             throw new KieServerControllerIllegalArgumentException("No server template found for id " + serverTemplateId);
         }
 
+        if (containerSpec.getId() == null || containerSpec.getId().isEmpty()) {
+            throw new KieServerControllerException("Cannot create container with empty container id.");
+        }
+        
         if (serverTemplate.hasContainerSpec(containerSpec.getId())) {
             throw new KieServerControllerException("Server template with id " + serverTemplateId + " associated already with container " + containerSpec.getId());
         }
@@ -71,8 +75,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
         notificationService.notify(new ServerTemplateUpdated(serverTemplate));
 
         if (containerSpec.getStatus().equals(KieContainerStatus.STARTED)) {
-            List<Container> containers = kieServerInstanceManager.startContainer(serverTemplate, containerSpec);
-            notificationService.notify(serverTemplate, containerSpec, containers);
+            kieServerInstanceManager.startContainer(serverTemplate, containerSpec, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
         }
     }
 
@@ -94,6 +97,12 @@ public class SpecManagementServiceImpl implements SpecManagementService {
             throw new KieServerControllerIllegalArgumentException("No server template found for id " + serverTemplateId);
         }
 
+
+        if (containerSpec.getId() == null || containerSpec.getId().isEmpty()) {
+            throw new KieServerControllerException("Cannot update container with empty container id.");
+        }
+        
+        
         if (!containerSpec.getId().equals(containerId)) {
             throw new KieServerControllerException("Cannot update container " + containerSpec.getId() + " on container " + containerId);
         }
@@ -119,8 +128,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
         notificationService.notify(new ServerTemplateUpdated(serverTemplate, resetBeforeUpdate));
         // in case container was started before it was update or update comes with status started update container in running servers
         if (currentVersion.getStatus().equals(KieContainerStatus.STARTED) || containerSpec.getStatus().equals(KieContainerStatus.STARTED)) {
-            List<Container> containers = kieServerInstanceManager.upgradeAndStartContainer(serverTemplate, containerSpec, resetBeforeUpdate);
-            notificationService.notify(serverTemplate, containerSpec, containers);
+            kieServerInstanceManager.upgradeAndStartContainer(serverTemplate, containerSpec, resetBeforeUpdate, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
         }
     }
 
@@ -139,8 +147,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
         if (containerSpecs != null && !containerSpecs.isEmpty()) {
             for (ContainerSpec containerSpec : containerSpecs) {
                 if (containerSpec.getStatus().equals(KieContainerStatus.STARTED)) {
-                    List<Container> containers = kieServerInstanceManager.startContainer(serverTemplate, containerSpec);
-                    notificationService.notify(serverTemplate, containerSpec, containers);
+                    kieServerInstanceManager.startContainer(serverTemplate, containerSpec, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
                 }
             }
         }
@@ -148,10 +155,11 @@ public class SpecManagementServiceImpl implements SpecManagementService {
 
     @Override
     public ServerTemplate getServerTemplate(String serverTemplateId) {
-        final ServerTemplate serverTemplate = templateStorage.load(serverTemplateId);
+        ServerTemplate serverTemplate = templateStorage.load(serverTemplateId);
         if (serverTemplate == null) {
             throw new KieServerControllerIllegalArgumentException("No server template found for id " + serverTemplateId);
         }
+        serverTemplate = new ServerTemplate(serverTemplate);
         return serverTemplate;
     }
 
@@ -201,9 +209,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
             ContainerSpec containerSpec = serverTemplate.getContainerSpec(containerSpecId);
             kieServerInstanceManager.stopContainer(serverTemplate, containerSpec);
             serverTemplate.deleteContainerSpec(containerSpecId);
-
             templateStorage.update(serverTemplate);
-
             notificationService.notify(new ServerTemplateUpdated(serverTemplate));
         } else {
             throw new KieServerControllerIllegalArgumentException("Container " + containerSpecId + " not found");
@@ -402,9 +408,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
 
         templateStorage.update(serverTemplate);
 
-        List<Container> containers = kieServerInstanceManager.startContainer(serverTemplate, containerSpec);
-
-        notificationService.notify(serverTemplate, containerSpec, containers);
+        kieServerInstanceManager.startContainer(serverTemplate, containerSpec, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
     }
 
     @Override
@@ -423,9 +427,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
 
         templateStorage.update(serverTemplate);
 
-        List<Container> containers = kieServerInstanceManager.stopContainer(serverTemplate, containerSpec);
-
-        notificationService.notify(serverTemplate, containerSpec, containers);
+        kieServerInstanceManager.stopContainer(serverTemplate, containerSpec, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
     }
     
     @Override
@@ -448,9 +450,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
 
         templateStorage.update(serverTemplate);
 
-        List<Container> containers = kieServerInstanceManager.activateContainer(serverTemplate, containerSpec);
-
-        notificationService.notify(serverTemplate, containerSpec, containers);
+        kieServerInstanceManager.activateContainer(serverTemplate, containerSpec, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
     }
 
     @Override
@@ -473,9 +473,7 @@ public class SpecManagementServiceImpl implements SpecManagementService {
 
         templateStorage.update(serverTemplate);
 
-        List<Container> containers = kieServerInstanceManager.deactivateContainer(serverTemplate, containerSpec);
-
-        notificationService.notify(serverTemplate, containerSpec, containers);
+        kieServerInstanceManager.deactivateContainer(serverTemplate, containerSpec, (containers) -> notificationService.notify(serverTemplate, containerSpec, containers));
     }
 
     @Override

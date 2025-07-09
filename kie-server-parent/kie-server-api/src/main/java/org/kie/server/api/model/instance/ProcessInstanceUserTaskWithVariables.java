@@ -34,6 +34,9 @@ public class ProcessInstanceUserTaskWithVariables {
     @XmlElement(name = "name")
     private String name;
 
+    @XmlElement(name = "description")
+    private String description;
+
     @XmlElement(name = "actual-owner")
     private String actualOwner;
 
@@ -55,6 +58,9 @@ public class ProcessInstanceUserTaskWithVariables {
     @XmlElement(name = "process-variables")
     private Map<String, Object> processVariables;
 
+    @XmlElement(name = "status")
+    private String status;
+
     public Long getId() {
         return id;
     }
@@ -69,6 +75,14 @@ public class ProcessInstanceUserTaskWithVariables {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getActualOwner() {
@@ -127,10 +141,19 @@ public class ProcessInstanceUserTaskWithVariables {
         this.processVariables = processVariables;
     }
 
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
     @Override
     public String toString() {
-        return "ProcessInstanceUserTaskWithVariables [id=" + id + ", name=" + name + ", correlationKey=" + correlationKey + ", processDefinitionId=" + processDefinitionId + ", processInstanceId=" + processInstanceId +
-               "]";
+        return "ProcessInstanceUserTaskWithVariables [id=" + id + ", name=" + name + ", description=" + description
+                + ", correlationKey=" + correlationKey + ", processDefinitionId=" + processDefinitionId
+                + ", processInstanceId=" + processInstanceId + "]";
     }
 
 }

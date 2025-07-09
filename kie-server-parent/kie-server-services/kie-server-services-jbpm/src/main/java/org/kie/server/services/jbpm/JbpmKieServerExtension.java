@@ -121,12 +121,14 @@ import org.kie.server.services.api.KieServerExtension;
 import org.kie.server.services.api.KieServerRegistry;
 import org.kie.server.services.api.SupportedTransports;
 import org.kie.server.services.impl.KieServerImpl;
+import org.kie.server.services.impl.security.ElytronIdentityProvider;
 import org.kie.server.services.jbpm.admin.ProcessAdminServiceBase;
 import org.kie.server.services.jbpm.admin.UserTaskAdminServiceBase;
 import org.kie.server.services.jbpm.jpa.PersistenceUnitExtensionsLoader;
 import org.kie.server.services.jbpm.jpa.PersistenceUnitInfoImpl;
 import org.kie.server.services.jbpm.jpa.PersistenceUnitInfoLoader;
-import org.kie.server.services.jbpm.security.JMSUserGroupAdapter;
+import org.kie.server.services.jbpm.security.ElytronUserGroupCallbackImpl;
+import org.kie.server.services.jbpm.security.BrokerUserGroupAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,7 +136,6 @@ public class JbpmKieServerExtension implements KieServerExtension {
 
     public static final String EXTENSION_NAME = "jBPM";
     private static final String PERSISTENCE_XML_LOCATION = "/jpa/META-INF/persistence.xml";
-    private static final String IS_DISPOSE_CONTAINER_PARAM = "jBPMExtensionIsDisposeContainer";
 
     private static final Logger logger = LoggerFactory.getLogger(JbpmKieServerExtension.class);
 
@@ -220,10 +221,17 @@ public class JbpmKieServerExtension implements KieServerExtension {
         // loaded from system property as callback info isn't stored as configuration in kie server repository
         String callbackConfig = System.getProperty(KieServerConstants.CFG_HT_CALLBACK);
 
-        // if no other callback set, use jaas by default
+        // if no other callback set, use Elytron or jaas by default
         if (callbackConfig == null || callbackConfig.isEmpty()) {
-            System.setProperty(KieServerConstants.CFG_HT_CALLBACK, "jaas");
-            JAASUserGroupCallbackImpl.addExternalUserGroupAdapter(new JMSUserGroupAdapter());
+            if (ElytronIdentityProvider.available()) {
+                System.setProperty(KieServerConstants.CFG_HT_CALLBACK, "custom");
+                String name = ElytronUserGroupCallbackImpl.class.getName();
+                ElytronUserGroupCallbackImpl.addExternalUserGroupAdapter(new BrokerUserGroupAdapter());
+                System.setProperty(KieServerConstants.CFG_HT_CALLBACK_CLASS, name);
+            } else {
+                System.setProperty(KieServerConstants.CFG_HT_CALLBACK, "jaas");
+                JAASUserGroupCallbackImpl.addExternalUserGroupAdapter(new BrokerUserGroupAdapter());
+            }
         }
 
         this.isExecutorAvailable = isExecutorOnClasspath();
@@ -340,7 +348,7 @@ public class JbpmKieServerExtension implements KieServerExtension {
                                                                                  new ExecutorServiceBase(executorService, context),
                                                                                  new QueryDataServiceBase(queryService, context),
                                                                                  new DocumentServiceBase(context),
-                                                                                 new ProcessAdminServiceBase(processInstanceMigrationService, processInstanceAdminService, context),
+                                                                                 new ProcessAdminServiceBase(processInstanceMigrationService, processInstanceAdminService, runtimeDataService, context),
                                                                                  new UserTaskAdminServiceBase(userTaskAdminService, context));
     }
 
@@ -401,12 +409,15 @@ public class JbpmKieServerExtension implements KieServerExtension {
                 return;
             }
             ReleaseId releaseId = kieContainerInstance.getKieContainer().getReleaseId();
+            if (releaseId == null) {
+                releaseId = kieContainerInstance.getResource().getReleaseId();
+            }
 
             KModuleDeploymentUnit unit = new CustomIdKmoduleDeploymentUnit(id, releaseId.getGroupId(), releaseId.getArtifactId(), releaseId.getVersion());
 
             if (!hasDefaultSession) {
-                unit.setKbaseName(kbaseNames.iterator().next());
-                unit.setKsessionName(ksessionNames.iterator().next());
+                unit.setKbaseName(kieContainer.getKieBaseModel(id).getName());
+                unit.setKsessionName(kieContainer.getKieSessionNamesInKieBase(id).iterator().next());
             }
             // override defaults if config options are given
             KieServerConfig config = new KieServerConfig(kieContainerInstance.getResource().getConfigItems());
@@ -420,9 +431,13 @@ public class JbpmKieServerExtension implements KieServerExtension {
                 unit.setMergeMode(MergeMode.valueOf(mergeMode));
             }
             String ksession = config.getConfigItemValue(KieServerConstants.PCFG_KIE_SESSION);
-            unit.setKsessionName(ksession);
+            if (ksession != null) {
+                unit.setKsessionName(ksession);
+            }
             String kbase = config.getConfigItemValue(KieServerConstants.PCFG_KIE_BASE);
-            unit.setKbaseName(kbase);
+            if (kbase != null && !kbase.isEmpty()) {
+                unit.setKbaseName(kbase);
+            }
 
             // reuse kieContainer to avoid unneeded bootstrap
             unit.setKieContainer(kieContainer);
@@ -522,7 +537,7 @@ public class JbpmKieServerExtension implements KieServerExtension {
     public void updateContainer(String id, KieContainerInstance kieContainerInstance, Map<String, Object> parameters) {
         // essentially it's a redeploy to make sure all components are up to date,
         // though update of kie base is done only once on kie server level and KieContainer is reused across all extensions
-        parameters.put(IS_DISPOSE_CONTAINER_PARAM, Boolean.FALSE);
+        parameters.put(KieServerConstants.IS_DISPOSE_CONTAINER_PARAM, Boolean.FALSE);
 
         disposeContainer(id, kieContainerInstance, parameters);
 
@@ -548,17 +563,18 @@ public class JbpmKieServerExtension implements KieServerExtension {
 
         KModuleDeploymentUnit unit = (KModuleDeploymentUnit) deploymentService.getDeployedUnit(id).getDeploymentUnit();
 
-        if (kieServer.getInfo().getResult().getMode().equals(KieServerMode.PRODUCTION)) {
-            deploymentService.undeploy(new CustomIdKmoduleDeploymentUnit(id, unit.getGroupId(), unit.getArtifactId(), unit.getVersion()));
+        // Checking if we are disposing or updating the container. We must only keep process instances only when updating.
+        Boolean isDispose = (Boolean) parameters.get(KieServerConstants.IS_DISPOSE_CONTAINER_PARAM);
+        if (isDispose == null) {
+            isDispose = isDevelopmentMode() ? Boolean.TRUE : Boolean.FALSE;
+        }
+        
+        if (isDispose) {
+            deploymentService.undeploy(new CustomIdKmoduleDeploymentUnit(id, unit.getGroupId(), unit.getArtifactId(), unit.getVersion()), PreUndeployOperations.abortUnitActiveProcessInstances(runtimeDataService, deploymentService));
+        } else if (isDevelopmentMode()){
+            deploymentService.undeploy(new CustomIdKmoduleDeploymentUnit(id, unit.getGroupId(), unit.getArtifactId(), unit.getVersion()), PreUndeployOperations.doNothing());
         } else {
-            // Checking if we are disposing or updating the container. We must only keep process instances only when updating.
-            Boolean isDispose = (Boolean) parameters.getOrDefault(IS_DISPOSE_CONTAINER_PARAM, Boolean.TRUE);
-
-            if (isDispose) {
-                deploymentService.undeploy(new CustomIdKmoduleDeploymentUnit(id, unit.getGroupId(), unit.getArtifactId(), unit.getVersion()), PreUndeployOperations.abortUnitActiveProcessInstances(runtimeDataService, deploymentService));
-            } else {
-                deploymentService.undeploy(new CustomIdKmoduleDeploymentUnit(id, unit.getGroupId(), unit.getArtifactId(), unit.getVersion()), PreUndeployOperations.doNothing());
-            }
+            deploymentService.undeploy(new CustomIdKmoduleDeploymentUnit(id, unit.getGroupId(), unit.getArtifactId(), unit.getVersion()));
         }
 
         // remove any query result mappers for container
@@ -701,12 +717,19 @@ public class JbpmKieServerExtension implements KieServerExtension {
     protected void addTaskBAMEventListener(final KModuleDeploymentUnit unit, final InternalKieContainer kieContainer) {
         final DeploymentDescriptor descriptor = getDeploymentDescriptor(unit, kieContainer);
         if (descriptor.getAuditMode() != AuditMode.NONE) {
-            descriptor.getBuilder().addTaskEventListener(
-                    new ObjectModel(
+            List<ObjectModel> oldList = descriptor.getTaskEventListeners();
+            ObjectModel model = new ObjectModel(
                             "mvel",
                             "new org.jbpm.services.task.lifecycle.listeners.BAMTaskEventListener(false)"
-                    )
             );
+            if(!oldList.contains(model)) {
+                if(!oldList.isEmpty()) {
+                    oldList.add(0, model);
+                } else {
+                    oldList.add(model);
+                }
+            }
+            descriptor.getBuilder().setTaskEventListeners(oldList);
             unit.setDeploymentDescriptor(descriptor);
         }
     }
@@ -736,8 +759,7 @@ public class JbpmKieServerExtension implements KieServerExtension {
     protected DeploymentDescriptor getDeploymentDescriptor(KModuleDeploymentUnit unit, InternalKieContainer kieContainer) {
         DeploymentDescriptor descriptor = unit.getDeploymentDescriptor();
         if (descriptor == null) {
-            List<DeploymentDescriptor> descriptorHierarchy = DeploymentDescriptorManagerUtil.getDeploymentDescriptorHierarchy(deploymentDescriptorManager, kieContainer);
-            descriptor = merger.merge(descriptorHierarchy, MergeMode.MERGE_COLLECTIONS);
+            return DeploymentDescriptorManagerUtil.getDeploymentDescriptor(deploymentDescriptorManager, kieContainer, MergeMode.MERGE_COLLECTIONS);
         }
         return descriptor;
     }

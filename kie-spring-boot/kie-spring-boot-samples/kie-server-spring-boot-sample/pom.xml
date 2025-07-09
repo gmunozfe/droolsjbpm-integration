@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.kie</groupId>
     <artifactId>kie-spring-boot-samples</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
   <artifactId>kie-server-spring-boot-sample</artifactId>
 
@@ -14,6 +14,7 @@
 
   <properties>
     <start-class>org.kie.server.springboot.samples.KieServerApplication</start-class>
+    <sonar.exclusions>**/WebSecurityConfig.java</sonar.exclusions>
   </properties>
   
   <dependencies>
@@ -40,12 +41,6 @@
     <dependency>
       <groupId>org.apache.cxf</groupId>
       <artifactId>cxf-rt-rs-service-description-swagger</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.cxf</groupId>
-          <artifactId>cxf-rt-rs-service-description-swagger-ui</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.swagger</groupId>
@@ -88,6 +83,14 @@
           <groupId>jakarta.xml.bind</groupId>
           <artifactId>jakarta.xml.bind-api</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.junit.vintage</groupId>
+          <artifactId>junit-vintage-engine</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -101,14 +104,31 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-          <groupId>org.jboss.spec.javax.ws.rs</groupId>
-          <artifactId>jboss-jaxrs-api_2.1_spec</artifactId>
+          <groupId>jakarta.ws.rs</groupId>
+          <artifactId>jakarta.ws.rs-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>jcl-over-slf4j</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>kafka</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Test - Wildfly Elytron -->
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-auth-server</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -130,6 +150,13 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <reuseForks>false</reuseForks>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>

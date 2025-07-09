@@ -28,9 +28,8 @@ import org.jbpm.kie.services.impl.KModuleDeploymentUnit;
 import org.jbpm.runtime.manager.impl.jpa.EntityManagerFactoryManager;
 import org.jbpm.services.api.DeploymentService;
 import org.jbpm.services.api.ProcessService;
-import org.jbpm.springboot.samples.JBPMApplication;
-import org.jbpm.springboot.samples.TestAutoConfiguration;
-import org.jbpm.springboot.samples.listeners.CountDownLatchEventListener;
+import org.jbpm.services.task.deadlines.notifications.impl.NotificationListenerManager;
+import org.jbpm.springboot.samples.events.listeners.CountDownLatchEventListener;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -89,7 +88,7 @@ public class TimerProcessTest {
     
     @After
     public void cleanup() {
-
+        NotificationListenerManager.get().reset();
         deploymentService.undeploy(unit);
     }
  

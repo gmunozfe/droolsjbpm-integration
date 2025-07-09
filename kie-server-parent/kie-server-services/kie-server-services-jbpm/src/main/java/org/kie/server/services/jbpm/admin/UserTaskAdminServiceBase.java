@@ -24,12 +24,14 @@ import java.util.function.Function;
 import org.jbpm.services.api.admin.TaskNotification;
 import org.jbpm.services.api.admin.TaskReassignment;
 import org.jbpm.services.api.admin.UserTaskAdminService;
+import org.kie.api.task.model.Email;
 import org.kie.api.task.model.Group;
 import org.kie.api.task.model.OrganizationalEntity;
 import org.kie.api.task.model.User;
 import org.kie.internal.runtime.error.ExecutionError;
 import org.kie.internal.task.api.TaskModelFactory;
 import org.kie.internal.task.api.TaskModelProvider;
+import org.kie.server.api.KieServerConstants;
 import org.kie.server.api.model.admin.EmailNotification;
 import org.kie.server.api.model.admin.ExecutionErrorInstance;
 import org.kie.server.api.model.admin.ExecutionErrorInstanceList;
@@ -59,69 +61,129 @@ public class UserTaskAdminServiceBase {
 
     private Function<String, OrganizationalEntity> mapToUser = id -> factory.newUser(id);
     private Function<String, OrganizationalEntity> mapToGroup = id -> factory.newGroup(id);
+    private Function<String, OrganizationalEntity> mapToEmails = id -> factory.newEmail(id);
+
+    private boolean bypassAuthUser;
 
     public UserTaskAdminServiceBase(UserTaskAdminService userTaskAdminService, KieServerRegistry context) {
         this.userTaskAdminService = userTaskAdminService;
         this.marshallerHelper = new MarshallerHelper(context);
         this.context = context;
+        this.bypassAuthUser = Boolean.parseBoolean(context.getConfig().getConfigItemValue(KieServerConstants.CFG_BYPASS_AUTH_USER, "false"));
     }
 
     public void addPotentialOwners(String containerId, Number taskId, boolean removeExisting, String payload, String marshallingType) {
+        addPotentialOwners(null, containerId, taskId, removeExisting, payload, marshallingType);
+    }
+    public void addPotentialOwners(String userId, String containerId, Number taskId, boolean removeExisting, String payload, String marshallingType) {
         logger.debug("About to unmarshall payload '{}' to map of task inputs", payload);
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
 
         OrganizationalEntity[] entities = convert(containerId, taskId, payload, marshallingType);
 
-        userTaskAdminService.addPotentialOwners(containerId, taskId.longValue(), removeExisting, entities);
+        if(!bypassAuthUser || userId == null) {
+            userTaskAdminService.addPotentialOwners(containerId, taskId.longValue(), removeExisting, entities);
+        } else {
+            userTaskAdminService.addPotentialOwners(userId, containerId, taskId.longValue(), removeExisting, entities);
+        }
         logger.debug("Potential owners {} added to task {}", entities, taskId);
     }
 
     public void addExcludedOwners(String containerId, Number taskId, boolean removeExisting, String payload, String marshallingType) {
+        addExcludedOwners(null, containerId, taskId, removeExisting, payload, marshallingType);
+    }
+
+    public void addExcludedOwners(String userId, String containerId, Number taskId, boolean removeExisting, String payload, String marshallingType) {
         logger.debug("About to unmarshall payload '{}' to map of task inputs", payload);
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
         OrganizationalEntity[] entities = convert(containerId, taskId, payload, marshallingType);
 
-        userTaskAdminService.addExcludedOwners(containerId, taskId.longValue(), removeExisting, entities);
+
+        if(!bypassAuthUser || userId == null) {
+            userTaskAdminService.addExcludedOwners(containerId, taskId.longValue(), removeExisting, entities);
+        } else {
+            userTaskAdminService.addExcludedOwners(userId, containerId, taskId.longValue(), removeExisting, entities);
+        }
+        
+
         logger.debug("Excluded owners {} added to task {}", entities, taskId);
     }
 
     public void addBusinessAdmins(String containerId, Number taskId, boolean removeExisting, String payload, String marshallingType) {
+        addBusinessAdmins(null, containerId, taskId, removeExisting, payload, marshallingType);
+    }
+
+    public void addBusinessAdmins(String userId, String containerId, Number taskId, boolean removeExisting, String payload, String marshallingType) {
         logger.debug("About to unmarshall payload '{}' to map of task inputs", payload);
 
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
         OrganizationalEntity[] entities = convert(containerId, taskId, payload, marshallingType);
 
-        userTaskAdminService.addBusinessAdmins(containerId, taskId.longValue(), removeExisting, entities);
+        if(!bypassAuthUser || userId == null) {
+            userTaskAdminService.addBusinessAdmins(containerId, taskId.longValue(), removeExisting, entities);
+        } else {
+            userTaskAdminService.addBusinessAdmins(userId, containerId, taskId.longValue(), removeExisting, entities);
+        }
+
+
         logger.debug("Business admins {} added to task {}", entities, taskId);
     }
 
     public void removePotentialOwners(String containerId, Number taskId, List<String> orgEntities, boolean isUser) {
+        removePotentialOwners(null, containerId, taskId, orgEntities, isUser);
+    }
+
+    public void removePotentialOwners(String userId, String containerId, Number taskId, List<String> orgEntities, boolean isUser) {
         logger.debug("About to remove {} from task {} as potential owners", orgEntities, taskId);
 
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
         OrganizationalEntity[] entities = convert(orgEntities, isUser);
 
-        userTaskAdminService.removePotentialOwners(containerId, taskId.longValue(), entities);
+        if(!bypassAuthUser || userId == null) {
+            userTaskAdminService.removePotentialOwners(containerId, taskId.longValue(), entities);
+        } else {
+            userTaskAdminService.removePotentialOwners(userId, containerId, taskId.longValue(), entities);
+        }
+
+
         logger.debug("Potential owners {} removed task {}", entities, taskId);
     }
-
     public void removeExcludedOwners(String containerId, Number taskId, List<String> orgEntities, boolean isUser) {
+        removeExcludedOwners(null, containerId, taskId, orgEntities, isUser);
+    }
+
+    public void removeExcludedOwners(String userId, String containerId, Number taskId, List<String> orgEntities, boolean isUser) {
         logger.debug("About to remove {} from task {} as excluded owners", orgEntities, taskId);
 
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
         OrganizationalEntity[] entities = convert(orgEntities, isUser);
 
-        userTaskAdminService.removeExcludedOwners(containerId, taskId.longValue(), entities);
+        if(!bypassAuthUser || userId == null) {
+            userTaskAdminService.removeExcludedOwners(containerId, taskId.longValue(), entities);
+        } else {
+            userTaskAdminService.removeExcludedOwners(userId, containerId, taskId.longValue(), entities);
+        }
+
         logger.debug("Excluded owners {} removed task {}", entities, taskId);
     }
 
     public void removeBusinessAdmins(String containerId, Number taskId, List<String> orgEntities, boolean isUser) {
+        removeBusinessAdmins(null, containerId, taskId, orgEntities, isUser);
+    }
+
+    public void removeBusinessAdmins(String userId, String containerId, Number taskId, List<String> orgEntities, boolean isUser) {
         logger.debug("About to remove {} from task {} as business admins", orgEntities, taskId);
 
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
         OrganizationalEntity[] entities = convert(orgEntities, isUser);
 
-        userTaskAdminService.removeBusinessAdmins(containerId, taskId.longValue(), entities);
+        if(!bypassAuthUser || userId == null) {
+            userTaskAdminService.removeBusinessAdmins(containerId, taskId.longValue(), entities);
+        } else {
+            userTaskAdminService.removeBusinessAdmins(userId, containerId, taskId.longValue(), entities);
+        }
+
+
         logger.debug("Business admins {} removed task {}", entities, taskId);
     }
 
@@ -239,7 +301,29 @@ public class UserTaskAdminServiceBase {
         containerId = context.getContainerId(containerId, new ByTaskIdContainerLocator(taskId.longValue()));
         Collection<TaskNotification> notifications = userTaskAdminService.getTaskNotifications(containerId, taskId.longValue(), activeOnly);
 
-        List<org.kie.server.api.model.admin.TaskNotification> converted = notifications.stream().map(r -> org.kie.server.api.model.admin.TaskNotification.builder().id(r.getId()).active(r.isActive()).name(r.getName()).subject(r.getSubject()).content(r.getContent()).notifyAt(r.getDate()).users(r.getRecipients().stream().filter(oe -> oe instanceof User).map(oe -> oe.getId()).collect(toList())).groups(r.getRecipients().stream().filter(oe -> oe instanceof Group).map(oe -> oe.getId()).collect(toList())).build()).collect(toList());
+        List<org.kie.server.api.model.admin.TaskNotification> converted = notifications.stream()
+                                                                                       .map(r -> org.kie.server.api.model.admin.TaskNotification.builder()
+                                                                                                                                                .id(r.getId())
+                                                                                                                                                .active(r.isActive())
+                                                                                                                                                .name(r.getName())
+                                                                                                                                                .subject(r.getSubject())
+                                                                                                                                                .content(r.getContent())
+                                                                                                                                                .notifyAt(r.getDate())
+                                                                                                                                                .users(r.getRecipients().stream()
+                                                                                                                                                        .filter(oe -> oe instanceof User)
+                                                                                                                                                        .map(OrganizationalEntity::getId)
+                                                                                                                                                        .collect(toList()))
+                                                                                                                                                .groups(r.getRecipients()
+                                                                                                                                                         .stream()
+                                                                                                                                                         .filter(oe -> oe instanceof Group)
+                                                                                                                                                         .map(OrganizationalEntity::getId)
+                                                                                                                                                         .collect(toList()))
+                                                                                                                                                .emails(r.getRecipients()
+                                                                                                                                                         .stream()
+                                                                                                                                                         .filter(oe -> oe instanceof Email)
+                                                                                                                                                         .map(OrganizationalEntity::getId)
+                                                                                                                                                         .collect(toList()))
+                                                                                                                                                .build()).collect(toList());
 
         return new TaskNotificationList(converted);
     }
@@ -287,7 +371,7 @@ public class UserTaskAdminServiceBase {
     }
 
     /*
-     * Helper methods
+     * Helper methods / only for task onwers
      */
 
     protected OrganizationalEntity[] convert(List<String> orgEntities, boolean isUser) {
@@ -303,6 +387,10 @@ public class UserTaskAdminServiceBase {
         if (emailNotification.getGroups() != null) {
             recipients.addAll(emailNotification.getGroups().stream().map(mapToGroup).collect(toList()));
         }
+        if (emailNotification.getEmails() != null) {
+            recipients.addAll(emailNotification.getEmails().stream().map(mapToEmails).collect(toList()));
+        }
+
         org.kie.internal.task.api.model.EmailNotification email = userTaskAdminService.buildEmailNotification(emailNotification.getSubject(), recipients, emailNotification.getBody(), emailNotification.getFrom(), emailNotification.getReplyTo());
 
         return email;

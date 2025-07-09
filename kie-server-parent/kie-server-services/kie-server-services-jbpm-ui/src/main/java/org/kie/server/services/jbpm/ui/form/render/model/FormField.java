@@ -17,6 +17,7 @@
 package org.kie.server.services.jbpm.ui.form.render.model;
 
 import java.util.List;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -24,6 +25,9 @@ public class FormField {
 
     private String id;
     private String name;
+    
+    private Set<String> tags;
+    
     private String code;
     private String label;
     @JsonProperty("standaloneClassName")
@@ -37,7 +41,19 @@ public class FormField {
     @JsonProperty("readOnly")
     private boolean readOnly;
 
+
     private List<ItemOption> options;
+
+    @JsonProperty("listOfValues")
+    private List<String> listOfValues;
+
+    private Number min;
+
+    private Number max;
+
+    private Number precision;
+
+    private Number step;
 
     // subform related
     private String nestedForm;
@@ -48,6 +64,16 @@ public class FormField {
 
     private String creationForm;
     private String editionForm;
+
+    private boolean showTime;
+
+    public boolean isShowTime() {
+        return showTime;
+    }
+
+    public void setShowTime(boolean showTime) {
+        this.showTime = showTime;
+    }
 
     public String getId() {
         return id;
@@ -167,6 +193,54 @@ public class FormField {
 
     public void setEditionForm(String editionForm) {
         this.editionForm = editionForm;
+    }
+
+    public Number getMin() {
+        return min;
+    }
+
+    public void setMin(Number min) {
+        this.min = min;
+    }
+
+    public Number getMax() {
+        return max;
+    }
+
+    public void setMax(Number max) {
+        this.max = max;
+    }
+
+    public Number getPrecision() {
+        return precision;
+    }
+
+    public void setPrecision(Number precision) {
+        this.precision = precision;
+    }
+
+    public Number getStep() {
+        return step;
+    }
+
+    public void setStep(Number step) {
+        this.step = step;
+    }
+
+    public List<String> getListOfValues() {
+        return listOfValues;
+    }
+
+    public void setListOfValues(List<String> listOfValues) {
+        this.listOfValues = listOfValues;
+    }
+
+    public void setTags(Set<String> tags) {
+        this.tags = tags;
+    }
+
+    public Set<String> getTags() {
+        return tags;
     }
 
 }

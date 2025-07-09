@@ -28,6 +28,32 @@ public class ParameterSamples {
      * 
      */
 
+    public static final String MIGRATION_VAR_MAP_JSON =
+            "{ MigrationSpecification {\n" +
+            "   { " +
+            "        sourceProcessId : sourceProcessId, \n" +
+            "        targetProcessId : targetProcessId, \n" +
+            "        migration-nodes-map {\n" +
+            "            node1 : node2\n" +
+            "        }" +
+            "   }\n" +
+            "}";
+
+    public static final String MIGRATION_VAR_MAP_XML =
+            "<MigrationSpecification>\n" +
+            "   <MigrationProcessSpecification> " +
+            "        <sourceProcessId>sourceProcessId</sourceProcessId> \n" +
+            "        <targetProcessId>targetProcessId</targetProcessId>, \n" +
+            "        <migration-nodes-map>" +
+            "                    <entry>\\n\" + \n" + 
+            "                        <key>node 1</key>\\n\" + \n" + 
+            "                        <value xsi:type=\\\"xs:int\\\" xmlns:xs=\\\"http://www.w3.org/2001/XMLSchema\\\"\\n \" +\n" + 
+            "                               xmlns:xsi=\\\"http://www.w3.org/2001/XMLSchema-instance\\\">node 1 translate</value>\\n\" + \n" + 
+            "                    </entry>\\n\" + \n" + 
+            "        </migration-nodes-map>\n" +
+            "   </MigrationProcessSpecification>" +
+            "</MigrationSpecification>";
+
     public static final String SIMPLE_VAR_MAP_JSON = "{\n" + 
             "    \"age\": 25,\n" + 
             "    \"name\": \"john\"\n" +                  
@@ -155,6 +181,7 @@ public class ParameterSamples {
             "  \"from\" : \"test@jbpm.org\",\n" + 
             "  \"reply-to\" : \"no-reply@jbpm.org\",\n" + 
             "  \"users\" : [ \"john\" ],\n" + 
+                                                         "  \"emails\" : [ \"emails@jbpm.org\" ],\n" +
             "  \"groups\" : null,\n" + 
             "  \"subject\" : \"reminder\",\n" + 
             "  \"body\" : \"my test content\"\n" + 
@@ -681,6 +708,10 @@ public class ParameterSamples {
             "      \"process-instance-variables\": null\n" + 
             "    }\n" + 
             "  ]\n" + 
+            "}";
+    
+    public static final String COUNT_PROCESS_INSTANCES_RESPONSE_JSON = "{\n" +
+            "  \"count\": 150\n" +
             "}";
     
     public static final String QUERY_DEF_LIST_RESPONSE_JSON = "{\n" + 
@@ -1250,13 +1281,14 @@ public class ParameterSamples {
             "    <users>john</users>\n" + 
             "</org-entities>";
     public static final String EMAIL_NOTIFICATION_XML = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" + 
-            "<email-notification>\n" + 
-            "    <from>test@jbpm.org</from>\n" + 
-            "    <reply-to>no-reply@jbpm.org</reply-to>\n" + 
-            "    <users>john</users>\n" + 
-            "    <subject>reminder</subject>\n" + 
-            "    <body>my test content</body>\n" + 
-            "</email-notification>";
+                                                        "<email-notification>\n" +
+                                                        "    <from>test@jbpm.org</from>\n" +
+                                                        "    <reply-to>no-reply@jbpm.org</reply-to>\n" +
+                                                        "    <users>john</users>\n" +
+                                                        "    <emails>email@jbpm.olrg</emails>" +
+                                                        "    <subject>reminder</subject>\n" +
+                                                        "    <body>my test content</body>\n" +
+                                                        "</email-notification>";
     
     
     /*

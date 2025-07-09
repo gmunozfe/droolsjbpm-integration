@@ -195,7 +195,7 @@ public class KieSpringjBPMPersistenceKarafIntegrationTest extends AbstractKieSpr
     public static Server startH2Server() {
         try {
             // start h2 in memory database
-            Server server = Server.createTcpServer(new String[0]);
+            Server server = Server.createTcpServer(new String[]{"-ifNotExists"});
             server.start();
             return server;
         } catch (Throwable t) {
@@ -233,7 +233,7 @@ public class KieSpringjBPMPersistenceKarafIntegrationTest extends AbstractKieSpr
 
         // Load Kie-Spring
         options.add(loadKieFeatures("jbpm-spring-persistent"));
-        options.add(features(getFeaturesUrl("org.apache.karaf.features", "spring-legacy", getKarafVersion()), "aries-blueprint-spring"));
+        options.add(features(getFeaturesUrl("org.apache.karaf.features", "spring", getKarafVersion()), "aries-blueprint-spring"));
 
         // Create a bundle with META-INF/spring/kie-beans.xml - this should be processed automatically by Spring
         options.add(streamBundle(bundle()

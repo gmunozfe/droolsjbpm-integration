@@ -23,19 +23,17 @@
       <groupId>org.jbpm</groupId>
       <artifactId>jbpm-services-api</artifactId>
       <version>${version.org.kie}</version>
-      <scope>system</scope>
-      <systemPath>${jbpm.services.api.path}</systemPath>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.kie.soup</groupId>
       <artifactId>kie-soup-dataset-api</artifactId>
       <version>${version.org.kie}</version>
-      <scope>system</scope>
-      <systemPath>${kie.soup.dataset.api.path}</systemPath>
+      <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.jboss.spec.javax.xml.bind</groupId>
-      <artifactId>jboss-jaxb-api_2.3_spec</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>

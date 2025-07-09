@@ -64,6 +64,7 @@ import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_ATTACHMENT_ADD_POST_
 import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_ATTACHMENT_CONTENT_GET_URI;
 import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_ATTACHMENT_DELETE_URI;
 import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_ATTACHMENT_GET_URI;
+import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_CLAIM_BULK_URI;
 import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_CLAIM_PUT_URI;
 import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_COMMENTS_GET_URI;
 import static org.kie.server.api.rest.RestURI.TASK_INSTANCE_COMMENT_ADD_POST_URI;
@@ -152,8 +153,7 @@ public class UserTaskResource {
     }
 
 
-    @ApiOperation(value="Activates a specified task instance to be progressed.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Activates a specified task instance to be progressed.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_ACTIVATE_PUT_URI)
@@ -179,8 +179,7 @@ public class UserTaskResource {
 
     }
 
-    @ApiOperation(value="Claims (reserves) a specified task instance for the user sending the request.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Claims (reserves) a specified task instance for the user sending the request.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), 
                             @ApiResponse(code = 404, message = "Task with given id not found"), 
                             @ApiResponse(code = 403, message = "User was unable to execute current operation on task with given id due to a no 'current status' match or insufficient permissions")})
@@ -207,9 +206,32 @@ public class UserTaskResource {
             return internalServerError(errorMessage(e), v, conversationIdHeader);
         }
     }
+    
+    
+    @ApiOperation(value = "Claims (reserves) multiple task instances for the user sending the request", response = Void.class, code = 200)
+    @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"),  
+                            @ApiResponse(code = 403, message = "User was unable to execute current operation on task with given id due to a no 'current status' match or insufficient permissions")})
+    @POST
+    @Path(TASK_INSTANCE_CLAIM_BULK_URI)
+    @Produces({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
+    public Response claimBulk(@Context HttpHeaders headers, 
+            @ApiParam(value = "container id that task instance belongs to", required = true, example = "evaluation_1.0.0-SNAPSHOT") @PathParam(CONTAINER_ID) String containerId,
+            @ApiParam(value = "identifiers of the task instances that should be claimed", required=true, example = "taskId=1&taskId=2&taskId=3") @QueryParam("taskId")  List<Long> taskIds, 
+            @ApiParam(value = "optional user id to be used instead of authenticated user - only when bypass authenticated user is enabled", required = false) @QueryParam("user")  String userId) {
+        Variant v = getVariant(headers);
+        Header conversationIdHeader = buildConversationIdHeader(containerId, context, headers);
+        try {
+            userTaskServiceBase.claim(containerId, taskIds, userId);
+            return createResponse("", v, Response.Status.OK, conversationIdHeader);
+        } catch (PermissionDeniedException e){
+            return forbidden(errorMessage(e, e.getMessage()), v, conversationIdHeader);
+        } catch (Exception e) {
+            logger.error("Unexpected error during processing {}", e.getMessage(), e);
+            return internalServerError(errorMessage(e), v, conversationIdHeader);
+        }
+    }
 
-    @ApiOperation(value="Completes a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Completes a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), 
                             @ApiResponse(code = 404, message = "Task with given id not found"), 
                             @ApiResponse(code = 403, message = "User was unable to execute current operation on task with given id due to a no 'current status' match or insufficient permissions")})
@@ -246,8 +268,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Delegates a specified task instance to a specified target user as the new task owner.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Delegates a specified task instance to a specified target user as the new task owner.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), 
                             @ApiResponse(code = 404, message = "Task with given id not found"), 
                             @ApiResponse(code = 403, message = "User was unable to execute current operation on task with given id due to a no 'current status' match or insufficient permissions")})
@@ -278,8 +299,7 @@ public class UserTaskResource {
 
     }
 
-    @ApiOperation(value="Exits a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Exits a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_EXIT_PUT_URI)
@@ -304,8 +324,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Fails a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Fails a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_FAIL_PUT_URI)
@@ -365,8 +384,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Releases a specified task instance from being claimed by the task owner.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Releases a specified task instance from being claimed by the task owner.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), 
                             @ApiResponse(code = 404, message = "Task with given id not found"), 
                             @ApiResponse(code = 403, message = "User was unable to execute current operation on task with given id due to a no 'current status' match or insufficient permissions")})
@@ -393,8 +411,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Resumes a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Resumes a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_RESUME_PUT_URI)
@@ -443,8 +460,7 @@ public class UserTaskResource {
         }
     }
     
-    @ApiOperation(value="Starts a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Starts a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_START_PUT_URI)
@@ -468,8 +484,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Stops a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Stops a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_STOP_PUT_URI)
@@ -494,8 +509,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Suspends a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Suspends a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_SUSPEND_PUT_URI)
@@ -503,11 +517,15 @@ public class UserTaskResource {
     public Response suspend(@Context HttpHeaders headers, 
             @ApiParam(value = "container id that task instance belongs to", required = true, example = "evaluation_1.0.0-SNAPSHOT") @PathParam(CONTAINER_ID) String containerId,
             @ApiParam(value = "identifier of the task instance that should be suspended", required = true, example = "123") @PathParam(TASK_INSTANCE_ID) Long taskId, 
-            @ApiParam(value = "optional user id to be used instead of authenticated user - only when bypass authenticated user is enabled", required = false) @QueryParam("user") String userId) {
+            @ApiParam(value = "optional user id to be used instead of authenticated user - only when bypass authenticated user is enabled", required = false) @QueryParam("user") String userId,
+            @ApiParam(value = "optional map to pass parameters to suspend. e.g suspendUntil", required = false, examples=@Example(value= {
+                    @ExampleProperty(mediaType=JSON, value=VAR_MAP_JSON),
+                    @ExampleProperty(mediaType=XML, value=VAR_MAP_XML)})) String parametersPayload) {
         Variant v = getVariant(headers);
+        String type = getContentType(headers);
         Header conversationIdHeader = buildConversationIdHeader(containerId, context, headers);
         try {
-            userTaskServiceBase.suspend(containerId, taskId, userId);
+            userTaskServiceBase.suspend(containerId, taskId, userId, parametersPayload, type);
 
             return createResponse("", v, Response.Status.CREATED, conversationIdHeader);
         } catch (TaskNotFoundException e){
@@ -518,8 +536,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Nominates one or more potential owners to whom the task instance should be assigned.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Nominates one or more potential owners to whom the task instance should be assigned.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), 
                             @ApiResponse(code = 404, message = "Task with given id not found"), 
                             @ApiResponse(code = 403, message = "User was unable to execute current operation on task with given id due to a no 'current status' match or insufficient permissions")})
@@ -549,8 +566,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Updates the priority of a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Updates the priority of a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_PRIORITY_PUT_URI)
@@ -579,8 +595,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Updates the expiration date for a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Updates the expiration date for a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_EXPIRATION_DATE_PUT_URI)
@@ -609,8 +624,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Marks a specified task instance that can be skipped in a sequence of tasks.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Marks a specified task instance that can be skipped in a sequence of tasks.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_SKIPABLE_PUT_URI)
@@ -639,8 +653,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Updates the name of a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Updates the name of a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_NAME_PUT_URI)
@@ -667,8 +680,7 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Updates the description of a specified task instance.",
-            response=Void.class, code=201)
+    @ApiOperation(value = "Updates the description of a specified task instance.", response = Void.class, code = 201)
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found") })
     @PUT
     @Path(TASK_INSTANCE_DESCRIPTION_PUT_URI)
@@ -730,10 +742,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns output data for a specified task instance.",
-            response=Map.class, code=200)
+    @ApiOperation(value="Returns output data for a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = Map.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=GET_PROCESS_INSTANCE_VARS_RESPONSE_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_OUTPUT_DATA_GET_URI)
@@ -758,10 +769,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns input data for a specified task instance.",
-            response=Map.class, code=200)
+    @ApiOperation(value="Returns input data for a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = Map.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=GET_PROCESS_INSTANCE_VARS_RESPONSE_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_INPUT_DATA_GET_URI)
@@ -812,10 +822,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Adds a comment to a specified task instance and returns the ID of the new comment.",
-            response=Long.class, code=201)
+    @ApiOperation(value="Adds a comment to a specified task instance and returns the ID of the new comment.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 201, response = Long.class,  message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=INTEGER_JSON)})) })
     @POST
     @Path(TASK_INSTANCE_COMMENT_ADD_POST_URI)
@@ -857,7 +866,6 @@ public class UserTaskResource {
         Variant v = getVariant(headers);
         Header conversationIdHeader = buildConversationIdHeader(containerId, context, headers);
         try {
-
             userTaskServiceBase.deleteComment(containerId, taskId, commentId);
             // produce 204 NO_CONTENT response code
             return noContent(v, conversationIdHeader);
@@ -869,10 +877,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns all comments in a specified task instance.",
-            response=TaskCommentList.class, code=200)
+    @ApiOperation(value="Returns all comments in a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = TaskCommentList.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=GET_TASK_COMMENTS_RESPONSE_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_COMMENTS_GET_URI)
@@ -897,10 +904,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns a specified comment from a specified task instance.",
-            response=TaskComment.class, code=200)
+    @ApiOperation(value="Returns a specified comment from a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response=TaskComment.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=TASK_COMMENT_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_COMMENT_GET_URI)
@@ -927,10 +933,9 @@ public class UserTaskResource {
     }
 
     
-    @ApiOperation(value="Adds an attachment to a specified task instance and returns the ID of the new attachment.",
-            response=Long.class, code=201)
+    @ApiOperation(value="Adds an attachment to a specified task instance and returns the ID of the new attachment.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 201, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 201, response = Long.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=INTEGER_JSON)})) })
     @POST
     @Path(TASK_INSTANCE_ATTACHMENT_ADD_POST_URI)
@@ -987,10 +992,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns information about a specified attachment for a specified task instance.",
-            response=TaskAttachment.class, code=200)
+    @ApiOperation(value="Returns information about a specified attachment for a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = TaskAttachment.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=TASK_ATTACHMENT_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_ATTACHMENT_GET_URI)
@@ -1016,10 +1020,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns the content of a specified attachment for a specified task instance.",
-            response=Object.class, code=200)
+    @ApiOperation(value="Returns the content of a specified attachment for a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = Object.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=VAR_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_ATTACHMENT_CONTENT_GET_URI)
@@ -1045,10 +1048,9 @@ public class UserTaskResource {
         }
     }
     
-    @ApiOperation(value="Returns all attachments for a specified task instance.",
-            response=TaskAttachmentList.class, code=200)
+    @ApiOperation(value="Returns all attachments for a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = TaskAttachmentList.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=GET_TASK_ATTACHMENTS_RESPONSE_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_ATTACHMENTS_GET_URI)
@@ -1074,10 +1076,9 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns information about a specified task instance.",
-            response=TaskInstance.class, code=200)
+    @ApiOperation(value="Returns information about a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"), @ApiResponse(code = 404, message = "Task with given id not found"), 
-            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+            @ApiResponse(code = 200, response = TaskInstance.class, message = "Successful response", examples=@Example(value= {
                     @ExampleProperty(mediaType=JSON, value=GET_TASK_RESPONSE_JSON)})) })
     @GET
     @Path(TASK_INSTANCE_GET_URI)
@@ -1106,11 +1107,10 @@ public class UserTaskResource {
         }
     }
 
-    @ApiOperation(value="Returns all events for a specified task instance.",
-            response=TaskEventInstanceList.class, code=200)
+    @ApiOperation(value="Returns all events for a specified task instance.")
     @ApiResponses(value = { @ApiResponse(code = 500, message = "Unexpected error"),
                             @ApiResponse(code = 404, message = "Task with given id not found"), 
-                            @ApiResponse(code = 200, message = "Successfull response", examples=@Example(value= {
+                            @ApiResponse(code = 200, response = TaskEventInstanceList.class, message = "Successful response", examples=@Example(value= {
                                     @ExampleProperty(mediaType=JSON, value=GET_TASK_EVENTS_RESPONSE_JSON)}))})
     @GET
     @Path(TASK_INSTANCE_EVENTS_GET_URI)

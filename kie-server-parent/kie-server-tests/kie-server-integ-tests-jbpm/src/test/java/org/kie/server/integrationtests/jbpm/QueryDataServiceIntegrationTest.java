@@ -774,7 +774,8 @@ public class QueryDataServiceIntegrationTest extends JbpmKieServerBaseIntegratio
                 // expected
             }
 
-            errors = queryClient.query(query.getName(), QueryServicesClient.QUERY_MAP_ERROR, 0, 10, ExecutionErrorInstance.class);
+            // Database can contain errors from tests executed before, returning up to 100 errors to make sure all are returned.
+            errors = queryClient.query(query.getName(), QueryServicesClient.QUERY_MAP_ERROR, 0, 100, ExecutionErrorInstance.class);
             errors = filterErrorsByProcessInstanceId(errors, processInstanceId);
             assertNotNull(errors);
             assertEquals(1, errors.size());
@@ -878,7 +879,7 @@ public class QueryDataServiceIntegrationTest extends JbpmKieServerBaseIntegratio
                 "t.actualowner_id as ACTUALOWNER, po.entity_id as POTOWNER, p.processinstancedescription as PROCESSINSTANCEDESCRIPTION, t.CREATEDON as CREATEDON, " +
                 "t.CREATEDBY_ID as CREATEDBY, t.EXPIRATIONTIME as EXPIRATIONTIME, " +
                 "(select max(logtime) from taskevent where processinstanceid = t.processinstanceid and taskid = t.id) as lastmodificationdate, " +
-                "(select userid from taskevent where logtime = (select max(logtime) from taskevent where processinstanceid = t.processinstanceid and taskid = t.id) and type = 'ADDED' and processinstanceid = t.processinstanceid and taskid = t.id) as lastmodificationuser, " +
+                            "(select a.userid from taskevent a left join taskevent b on a.id < b.id WHERE b.id IS NULL and a.processinstanceid = t.processinstanceid and a.taskid = t.id) as lastmodificationuser, " +
                 "t.priority as PRIORITY, t.STATUS as STATUS, t.PROCESSINSTANCEID as PROCESSINSTANCEID, t.PROCESSID as PROCESSID, " +
                 "t.deploymentid as DEPLOYMENTID, d.name as TVNAME, d.type as TVTYPE, d.value as TVVALUE " +
                 "from TASK t " +
@@ -1050,6 +1051,32 @@ public class QueryDataServiceIntegrationTest extends JbpmKieServerBaseIntegratio
         }
 
 
+    }
+    
+    @Test
+    public void testDefaultQueryJbpmProcessInstances() {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("stringData", "waiting for signal");
+        parameters.put("personData", createPersonInstance(USER_JOHN));
+
+        List<Long> processInstanceIds = createProcessInstances(parameters);
+
+        QueryDefinition registeredQuery = queryClient.getQuery("jbpmProcessInstances");
+        
+        try {
+            List<ProcessInstance> instances = queryClient.query(registeredQuery.getName(), QueryServicesClient.QUERY_MAP_PI, 0, 10, ProcessInstance.class);
+            assertNotNull(instances);
+        } finally {
+            abortProcessInstances(processInstanceIds);
+        }
+    }
+    
+    @Test
+    public void testDefaultQueryJbpmHumanTasksWithAdmin() {
+        QueryDefinition registeredQuery = queryClient.getQuery("jbpmHumanTasksWithAdmin");
+        
+        List<TaskInstance> tasks = queryClient.query(registeredQuery.getName(), QueryServicesClient.QUERY_MAP_TASK, 0, 10, TaskInstance.class);
+        assertNotNull(tasks);
     }
 
     protected QueryDefinition getProcessInstanceWithVariablesQueryDefinition() {

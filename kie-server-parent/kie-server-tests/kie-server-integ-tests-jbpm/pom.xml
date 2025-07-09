@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.kie.server</groupId>
     <artifactId>kie-server-tests</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-server-integ-tests-jbpm</artifactId>
@@ -15,35 +15,14 @@
   <properties>
     <java.module.name>org.kie.server.itests.jbpm.core</java.module.name>
     <org.jbpm.server.ext.disabled>false</org.jbpm.server.ext.disabled>
+    <skip-prepare-kie-server>true</skip-prepare-kie-server>
   </properties>
 
   <dependencies>
+    <!-- Common Kie server test classes -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-integ-tests-common</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.activation</groupId>
-          <artifactId>activation</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- core deps -->
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-compiler</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-ci</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jbpm</groupId>
-      <artifactId>jbpm-document</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -52,14 +31,7 @@
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-api</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.activation</groupId>
-          <artifactId>activation</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
-
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-client</artifactId>
@@ -70,7 +42,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
@@ -78,109 +49,47 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- REST -->
-    <dependency>
-      <groupId>org.jboss.spec.javax.servlet</groupId>
-      <artifactId>jboss-servlet-api_3.1_spec</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>tjws</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- Stay with httpcomponents: it will save us pain (as opposed to changing 
-      from resteasy to cxf to cxf 3.0, etc. -->
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>fluent-hc</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- Replacement for the above excluded 'commons-logging:commons-logging' -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- persistence -->
-    <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-entitymanager</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>xml-apis</groupId>
-          <artifactId>xml-apis</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.hibernate</groupId>
-      <artifactId>hibernate-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.h2database</groupId>
-      <artifactId>h2</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.narayana.jta</groupId>
-      <artifactId>narayana-jta</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss</groupId>
-      <artifactId>jboss-transaction-spi</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jbpm</groupId>
-      <artifactId>jbpm-test-util</artifactId>
-      <scope>test</scope>
-    </dependency>
+    <!-- Needed for DBExternalResource -->
     <dependency>
       <groupId>org.kie</groupId>
       <artifactId>kie-test-util</artifactId>
       <scope>test</scope>
     </dependency>
 
+    <!-- Used in DocumentServiceIntegrationTest -->
     <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-embedder</artifactId>
+      <groupId>org.jbpm</groupId>
+      <artifactId>jbpm-document</artifactId>
       <scope>test</scope>
     </dependency>
 
+    <!-- Used in RuntimeDataServiceIntegrationTest -->
+    <dependency>
+      <groupId>org.jbpm</groupId>
+      <artifactId>jbpm-services-api</artifactId>
+    </dependency>
+
+    <!-- Used for instantiation of CorrelationKeyFactory -->
+    <dependency>
+      <groupId>org.jbpm</groupId>
+      <artifactId>jbpm-persistence-jpa</artifactId>
+      <scope>test</scope>
+    </dependency>
+    
+    <!-- Used for CustomNotificationListener -->
+    <dependency>
+      <groupId>org.jbpm</groupId>
+      <artifactId>jbpm-human-task-core</artifactId>
+    </dependency>
+
+    <!-- Used as an email client in UserTaskEscalationIntegrationTest -->
+    <dependency>
+      <groupId>org.subethamail</groupId>
+      <artifactId>subethasmtp-wiser</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Deployments for application servers -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server</artifactId>
@@ -202,39 +111,11 @@
       <type>war</type>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-test-web-service</artifactId>
       <type>war</type>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.jbpm</groupId>
-      <artifactId>jbpm-kie-services</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.soup</groupId>
-      <artifactId>kie-soup-dataset-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.subethamail</groupId>
-      <artifactId>subethasmtp-wiser</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>javax.activation</groupId>
-          <artifactId>activation</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <!-- This is an artificial dependency to make sure the kie-server-tests 
@@ -262,6 +143,30 @@
   <build>
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>prepare-kie-server</id>
+              <phase>pre-integration-test</phase>
+              <configuration>
+                <skip>${skip-prepare-kie-server}</skip>
+                <target>
+                  <unzip src="${kie-server.war.path}"
+                         dest="${project.build.directory}/unzipped-kie-server" />
+                  <copy file="${project.build.directory}/${project.artifactId}-${project.version}.jar"
+                        todir="${project.build.directory}/unzipped-kie-server/WEB-INF/lib" />
+                  <zip destfile="${project.build.directory}/kie-server.war"
+                       basedir="${project.build.directory}/unzipped-kie-server" />
+                </target>
+              </configuration>
+              <goals>
+                <goal>run</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
@@ -322,8 +227,12 @@
     </testResources>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+      </plugin>
+      <plugin>
         <groupId>org.codehaus.cargo</groupId>
-        <artifactId>cargo-maven2-plugin</artifactId>
+        <artifactId>cargo-maven3-plugin</artifactId>
         <configuration>
           <container>
             <systemProperties>
@@ -336,6 +245,7 @@
               <!-- UserInfo properties for UserTaskEscalationIntegrationTest -->
               <org.jbpm.ht.userinfo>props</org.jbpm.ht.userinfo>
               <jbpm.user.info.properties>file://${project.build.testOutputDirectory}/userinfo.properties</jbpm.user.info.properties>
+              <org.kie.server.services.jbpm.security.filesystemrealm.folder-path>${project.basedir}/target/cargo/configurations/wildfly23x/kie-fs-realm-users</org.kie.server.services.jbpm.security.filesystemrealm.folder-path>
             </systemProperties>
           </container>
         </configuration>
@@ -354,13 +264,6 @@
           <groupId>org.kie.server</groupId>
           <artifactId>kie-server-services-common</artifactId>
           <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <!-- Classes from this dependency already packaged in 'xml-apis:xml-apis' -->
-              <groupId>javax.xml.stream</groupId>
-              <artifactId>stax-api</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.kie.server</groupId>
@@ -384,29 +287,94 @@
           <scope>test</scope>
         </dependency>
 
+        <!-- Needed for ORM mapping file processing -->
         <dependency>
           <groupId>org.jbpm</groupId>
           <artifactId>jbpm-case-mgmt-impl</artifactId>
           <scope>test</scope>
         </dependency>
+
+        <!-- Needed for jBPM persistence -->
+        <dependency>
+          <groupId>com.h2database</groupId>
+          <artifactId>h2</artifactId>
+          <scope>test</scope>
+        </dependency>
+        <!-- Contains org.jbpm.test.util.CloseSafeMemoryContextFactory used as a context factory for local tests -->
+        <dependency>
+          <groupId>org.jbpm</groupId>
+          <artifactId>jbpm-test-util</artifactId>
+          <scope>test</scope>
+        </dependency>
+        <!-- Excluding javax.activation-api as it collides with javax.activation:activation -->
+        <dependency>
+          <groupId>org.hibernate</groupId>
+          <artifactId>hibernate-core</artifactId>
+          <scope>test</scope>
+          <exclusions>
+            <!-- collides with com.sun.xml.bind:jaxb-impl:jar:2.3.0 and com.sun.xml.bind:jaxb-impl:jar:2.3.0 -->
+            <exclusion>
+              <groupId>org.glassfish.jaxb</groupId>
+              <artifactId>jaxb-runtime</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
       </dependencies>
     </profile>
     <profile>
       <id>tomcat9</id>
-    </profile>
-    <profile>
-      <id>wildfly</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>tomcat9</value>
+        </property>
+      </activation>
+      <properties>
+        <kie-server.war.path>${maven.dependency.org.kie.server.kie-server.webc.war.path}</kie-server.war.path>
+        <skip-prepare-kie-server>false</skip-prepare-kie-server>
+      </properties>
       <build>
         <pluginManagement>
           <plugins>
             <plugin>
               <groupId>org.codehaus.cargo</groupId>
-              <artifactId>cargo-maven2-plugin</artifactId>
+              <artifactId>cargo-maven3-plugin</artifactId>
+              <configuration>
+                <deployables>
+                  <deployable>
+                    <location>${project.build.directory}/kie-server.war</location>
+                  </deployable>
+                </deployables>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+    <profile>
+      <id>wildfly</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>wildfly</value>
+        </property>
+      </activation>
+      <properties>
+        <kie-server.war.path>${maven.dependency.org.kie.server.kie-server.ee8.war.path}</kie-server.war.path>
+        <skip-prepare-kie-server>false</skip-prepare-kie-server>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.codehaus.cargo</groupId>
+              <artifactId>cargo-maven3-plugin</artifactId>
               <configuration>
                 <deployables>
                   <deployable>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>kie-server</artifactId>
+                    <location>${project.build.directory}/kie-server.war</location>
                     <!-- default, may be overridden in container specific 
                       profiles -->
                     <classifier>${kie.server.classifier}</classifier>
@@ -436,17 +404,28 @@
     </profile>
     <profile>
       <id>eap7</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>eap7</value>
+        </property>
+      </activation>
+      <properties>
+        <kie-server.war.path>${maven.dependency.org.kie.server.kie-server.ee8.war.path}</kie-server.war.path>
+        <skip-prepare-kie-server>false</skip-prepare-kie-server>
+      </properties>
       <build>
         <pluginManagement>
           <plugins>
             <plugin>
               <groupId>org.codehaus.cargo</groupId>
-              <artifactId>cargo-maven2-plugin</artifactId>
+              <artifactId>cargo-maven3-plugin</artifactId>
               <configuration>
                 <deployables>
                   <deployable>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>kie-server</artifactId>
+                    <location>${project.build.directory}/kie-server.war</location>
                     <!-- default, may be overridden in container specific 
                       profiles -->
                     <classifier>${kie.server.classifier}</classifier>
@@ -476,17 +455,28 @@
     </profile>
     <profile>
       <id>oracle-wls-12</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>oracle-wls-12</value>
+        </property>
+      </activation>
+      <properties>
+        <kie-server.war.path>${maven.dependency.org.kie.server.kie-server.ee7.war.path}</kie-server.war.path>
+        <skip-prepare-kie-server>false</skip-prepare-kie-server>
+      </properties>
       <build>
         <pluginManagement>
           <plugins>
             <plugin>
               <groupId>org.codehaus.cargo</groupId>
-              <artifactId>cargo-maven2-plugin</artifactId>
+              <artifactId>cargo-maven3-plugin</artifactId>
               <configuration>
                 <deployables>
                   <deployable>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>kie-server</artifactId>
+                    <location>${project.build.directory}/kie-server.war</location>
                     <!-- default, may be overridden in container specific 
                       profiles -->
                     <classifier>${kie.server.classifier}</classifier>
@@ -516,26 +506,37 @@
     </profile>
     <profile>
       <id>websphere9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>websphere9</value>
+        </property>
+      </activation>
+      <properties>
+        <kie-server.war.path>${maven.dependency.org.kie.server.kie-server.ee7.war.path}</kie-server.war.path>
+        <skip-prepare-kie-server>false</skip-prepare-kie-server>
+      </properties>
       <build>
         <pluginManagement>
           <plugins>
           <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-failsafe-plugin</artifactId>
-          <configuration>
-            <systemPropertyVariables>
-              <webservice.http.url>http://${container.hostname}:${container.port}/kie-server-test-web-service/AcmeDemoInterface/AcmeDemoService.wsdl</webservice.http.url>
-            </systemPropertyVariables>
-          </configuration>
-        </plugin>
-            <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <webservice.http.url>http://${container.hostname}:${container.port}/kie-server-test-web-service/AcmeDemoInterface/AcmeDemoService.wsdl</webservice.http.url>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+          <plugin>
               <groupId>org.codehaus.cargo</groupId>
-              <artifactId>cargo-maven2-plugin</artifactId>
+              <artifactId>cargo-maven3-plugin</artifactId>
               <configuration>
                 <deployables>
                   <deployable>
                     <groupId>${project.groupId}</groupId>
                     <artifactId>kie-server</artifactId>
+                    <location>${project.build.directory}/kie-server.war</location>
                     <!-- default, may be overridden in container specific 
                       profiles -->
                     <classifier>${kie.server.classifier}</classifier>
@@ -565,6 +566,12 @@
     </profile>
     <profile>
       <id>springboot</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>springboot</value>
+        </property>
+      </activation>
       <properties>
         <kieserver.jbpm.enabled>true</kieserver.jbpm.enabled>
         <jbpm.executor.enabled>true</jbpm.executor.enabled>

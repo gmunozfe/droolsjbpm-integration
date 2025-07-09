@@ -16,6 +16,7 @@
 
 package org.kie.server.api.rest;
 
+import java.net.URLEncoder;
 import java.util.Map;
 
 import org.apache.commons.lang3.text.StrLookup;
@@ -27,6 +28,7 @@ public class RestURI {
     public static final String CONTAINER_ID = "containerId";
     public static final String PROCESS_ID = "processId";
     public static final String PROCESS_INST_ID = "processInstanceId";
+    public static final String PROCESS_INST_HISTORY_TYPE = "processInstanceHistoryType";
     public static final String SIGNAL_NAME = "signalName";
     public static final String VAR_NAME = "varName";
     public static final String TASK_NAME = "taskName";
@@ -41,6 +43,9 @@ public class RestURI {
     public static final String JOB_KEY = "key";
     public static final String QUERY_NAME = "queryName";
     public static final String SOLVER_ID = "solverId";
+    public static final String MODEL_ID = "modelId";
+    public static final String DECISIONSERVICE_ID = "decisionServiceId";
+    public static final String OPENAPI = "openapi";
     public static final String DOCUMENT_ID = "documentId";
     public static final String CASE_ID = "caseId";
     public static final String CASE_DEF_ID = "caseDefId";
@@ -61,6 +66,8 @@ public class RestURI {
     public static final String SVG_NODE_COMPLETED_COLOR = "svgCompletedColor";
     public static final String SVG_NODE_COMPLETED_BORDER_COLOR = "svgCompletedBorderColor";
     public static final String SVG_NODE_ACTIVE_COLOR = "svgActiveBorderColor";
+    public static final String SVG_NODE_ACTIVE_ASYNC_BORDER_COLOR = "svgActiveAsyncBorderColor";
+    public static final String SVG_INSTANCE_BADGES_SHOW = "svgInstanceBadgesShow";
 
     public static final String PROCESS_URI = "containers/{" + CONTAINER_ID + "}/processes";
     public static final String PROCESS_DEF_URI = "containers/{" + CONTAINER_ID + "}/processes/definitions";
@@ -83,10 +90,14 @@ public class RestURI {
     // uris
     // process related prefixed by PROCESS_URI
     public static final String START_PROCESS_POST_URI = "{" + PROCESS_ID + "}/instances";
+    public static final String COMPUTE_PROCESS_OUTCOME_POST_URI = "{" + PROCESS_ID + "}/computedInstances";
+    public static final String START_PROCESS_FROM_NODES_POST_URI = "{" + PROCESS_ID + "}/instances/fromNodes";
+    public static final String START_PROCESS_FROM_NODES_WITH_CORRELATION_KEY_POST_URI = "{" + PROCESS_ID + "}/instances/correlation/{" + CORRELATION_KEY + "}/fromNodes";
     public static final String START_PROCESS_WITH_CORRELATION_KEY_POST_URI = "{" + PROCESS_ID + "}/instances/correlation/{" + CORRELATION_KEY + "}";
     public static final String ABORT_PROCESS_INST_DEL_URI = "instances/{" + PROCESS_INST_ID + "}";
     public static final String ABORT_PROCESS_INSTANCES_DEL_URI = "instances";
     public static final String SIGNAL_PROCESS_INST_POST_URI = "instances/{" + PROCESS_INST_ID + "}/signal/{" + SIGNAL_NAME + "}";
+    public static final String SIGNAL_PROCESS_BY_CORRELATION_KEY_POST_URI = "instances/correlation/{" + CORRELATION_KEY + "}/signal/{" + SIGNAL_NAME + "}";
     public static final String SIGNAL_PROCESS_INSTANCES_PORT_URI = "instances/signal/{" + SIGNAL_NAME + "}";
     public static final String PROCESS_INSTANCE_GET_URI = "instances/{" + PROCESS_INST_ID + "}";
     public static final String PROCESS_INSTANCE_VAR_PUT_URI = "instances/{" + PROCESS_INST_ID + "}/variable/{" + VAR_NAME + "}";
@@ -119,6 +130,7 @@ public class RestURI {
     public static final String PROCESS_INSTANCES_GET_URI = "processes/instances";
     public static final String PROCESS_INSTANCES_BY_PROCESS_ID_GET_URI = "processes/{" + PROCESS_ID + "}/instances";
     public static final String PROCESS_INSTANCES_BY_CONTAINER_ID_GET_URI = "containers/{" + CONTAINER_ID + "}/process/instances";
+    public static final String PROCESS_INSTANCES_BY_CONTAINER_ID_COUNT_URI = "containers/{" + CONTAINER_ID + "}/process/instances/count";
     public static final String PROCESS_INSTANCE_BY_CORRELATION_KEY_GET_URI = "processes/instance/correlation/{" + CORRELATION_KEY + "}";
     public static final String PROCESS_INSTANCES_BY_CORRELATION_KEY_GET_URI = "processes/instances/correlation/{" + CORRELATION_KEY + "}";
     public static final String PROCESS_INSTANCE_BY_INSTANCE_ID_GET_URI = "processes/instances/{" + PROCESS_INST_ID + "}";
@@ -149,6 +161,7 @@ public class RestURI {
     // task related prefixed by TASK_URI
     public static final String TASK_INSTANCE_ACTIVATE_PUT_URI = "{" + TASK_INSTANCE_ID + "}/states/activated";
     public static final String TASK_INSTANCE_CLAIM_PUT_URI = "{" + TASK_INSTANCE_ID + "}/states/claimed";
+    public static final String TASK_INSTANCE_CLAIM_BULK_URI = "states/claimed";
     public static final String TASK_INSTANCE_START_PUT_URI = "{" + TASK_INSTANCE_ID + "}/states/started";
     public static final String TASK_INSTANCE_STOP_PUT_URI = "{" + TASK_INSTANCE_ID + "}/states/stopped";
     public static final String TASK_INSTANCE_COMPLETE_PUT_URI = "{" + TASK_INSTANCE_ID + "}/states/completed";
@@ -231,6 +244,10 @@ public class RestURI {
 
     // DMN URI
     public static final String DMN_URI = "containers/{" + CONTAINER_ID + "}/dmn";
+    public static final String DMN_MODEL_URI = "models/{" + MODEL_ID + "}";
+    public static final String DMN_MODEL_DMNRESULT_URI = "models/{" + MODEL_ID + "}/dmnresult";
+    public static final String DMN_MODEL_DS_URI = "models/{" + MODEL_ID + "}/{" + DECISIONSERVICE_ID + "}";
+    public static final String DMN_MODEL_DS_DMNRESULT_URI = "models/{" + MODEL_ID + "}/{" + DECISIONSERVICE_ID + "}/dmnresult";
 
     // Scenario Simulation URI
     public static final String SCENARIO_SIMULATION_URI = "containers/{" + CONTAINER_ID + "}/scesim";
@@ -242,6 +259,7 @@ public class RestURI {
     public static final String DOCUMENT_INSTANCE_DELETE_URI = "{" + DOCUMENT_ID + "}";
 
     // admin process related
+    public static final String MIGRATE_PROCESS_SUBPROCESS_INST_PUT_URI = "instances/{" + PROCESS_INST_ID + "}/subprocess";
     public static final String MIGRATE_PROCESS_INST_PUT_URI = "instances/{" + PROCESS_INST_ID + "}";
     public static final String MIGRATE_PROCESS_INSTANCES_PUT_URI = "instances";
     public static final String CANCEL_NODE_INST_PROCESS_INST_DELETE_URI = "instances/{" + PROCESS_INST_ID + "}/nodeinstances/{" + NODE_INSTANCE_ID + "}";
@@ -363,7 +381,11 @@ public class RestURI {
             if (obj == null) {
                 throw new IllegalArgumentException("Missing value for " + key);
             }
-            return obj.toString();
+            return encode(obj);
         }
+    }
+    
+    public static String encode (Object obj) {
+        return URLEncoder.encode(obj.toString()).replace("+","%20");
     }
 }

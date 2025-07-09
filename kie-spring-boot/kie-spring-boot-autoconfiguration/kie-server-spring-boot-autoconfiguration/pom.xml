@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.kie</groupId>
     <artifactId>kie-spring-boot-autoconfiguration</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
   <artifactId>kie-server-spring-boot-autoconfiguration</artifactId>
   <name>KIE :: Spring :: Boot :: KIE Server Auto Configuration</name>
@@ -30,13 +30,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>jakarta.validation</groupId>
-          <artifactId>jakarta.validation-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
@@ -96,6 +95,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-loader</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-core</artifactId>
       <exclusions>
@@ -112,20 +116,16 @@
       <artifactId>kie-server-services-common</artifactId>
       <exclusions>
         <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.dom4j</groupId>
           <artifactId>dom4j</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>javax.servlet</groupId>
-          <artifactId>javax.servlet-api</artifactId>
+          <groupId>jakarta.servlet</groupId>
+          <artifactId>jakarta.servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.jboss.spec.javax.security.jacc</groupId>
-          <artifactId>jboss-jacc-api_1.4_spec</artifactId>
+          <groupId>jakarta.security.jacc</groupId>
+          <artifactId>jakarta.security.jacc-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -144,8 +144,8 @@
           <groupId>org.jboss.resteasy</groupId>
         </exclusion>
         <exclusion>
-          <groupId>org.jboss.spec.javax.ws.rs</groupId>
-          <artifactId>jboss-jaxrs-api_2.1_spec</artifactId>
+          <groupId>jakarta.ws.rs</groupId>
+          <artifactId>jakarta.ws.rs-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>aopalliance</groupId>
@@ -154,6 +154,10 @@
         <exclusion>
           <groupId>org.jboss.resteasy</groupId>
           <artifactId>resteasy-jackson-provider</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>jakarta.el</groupId>
+          <artifactId>jakarta.el-api</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

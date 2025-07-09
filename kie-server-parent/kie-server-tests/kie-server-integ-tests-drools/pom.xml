@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.kie.server</groupId>
     <artifactId>kie-server-tests</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-server-integ-tests-drools</artifactId>
@@ -20,54 +20,10 @@
   </properties>
 
   <dependencies>
-   <dependency>
+    <!-- Common Kie server test classes -->
+    <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-integ-tests-common</artifactId>
-      <scope>test</scope>
-    </dependency>
-    
-    <!-- core deps -->
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-compiler</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-ci</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- Needed for local kie container creation. -->
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-workbench-models-guided-dtable</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.uberfire</groupId>
-          <artifactId>uberfire-commons</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-workbench-models-guided-dtree</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.uberfire</groupId>
-          <artifactId>uberfire-commons</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-workbench-models-guided-scorecard</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-workbench-models-guided-template</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -77,11 +33,16 @@
       <artifactId>kie-server-api</artifactId>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-client</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <!-- Needed for instantiation of various commands -->
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-core</artifactId>
     </dependency>
 
     <!-- Logging -->
@@ -96,65 +57,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- REST --> 
-    <dependency>
-      <groupId>org.jboss.spec.javax.servlet</groupId>
-      <artifactId>jboss-servlet-api_3.1_spec</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>tjws</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-   <!--  Stay with httpcomponents: it will save us pain (as opposed to changing from resteasy to cxf to cxf 3.0, etc. --> 
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>fluent-hc</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- Replacement for the above excluded 'commons-logging:commons-logging' -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <scope>test</scope>
-    </dependency>
-    
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-embedder</artifactId>
-      <scope>test</scope>
-    </dependency>
-
+    <!-- Deployments for application servers -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server</artifactId>
@@ -177,12 +80,12 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- Assertions -->
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
@@ -213,6 +116,7 @@
               <kie.server.testing.kjars.build.settings.xml>${kie.server.testing.kjars.build.settings.xml}</kie.server.testing.kjars.build.settings.xml>
               <org.kie.prometheus.server.ext.disabled>${org.kie.prometheus.server.ext.disabled}</org.kie.prometheus.server.ext.disabled>
               <org.kie.scenariosimulation.server.ext.disabled>${org.kie.scenariosimulation.server.ext.disabled}</org.kie.scenariosimulation.server.ext.disabled>
+              <org.kie.server.json.fallbackClassLoader.enabled>true</org.kie.server.json.fallbackClassLoader.enabled>
             </systemPropertyVariables>
           </configuration>
         </plugin>
@@ -244,7 +148,7 @@
     <plugins>
       <plugin>
         <groupId>org.codehaus.cargo</groupId>
-        <artifactId>cargo-maven2-plugin</artifactId>
+        <artifactId>cargo-maven3-plugin</artifactId>
         <configuration>
           <container>
             <systemProperties>
@@ -255,6 +159,9 @@
               <org.drools.server.ext.disabled>${org.drools.server.ext.disabled}</org.drools.server.ext.disabled>
               <org.kie.prometheus.server.ext.disabled>${org.kie.prometheus.server.ext.disabled}</org.kie.prometheus.server.ext.disabled>
               <org.kie.scenariosimulation.server.ext.disabled>${org.kie.scenariosimulation.server.ext.disabled}</org.kie.scenariosimulation.server.ext.disabled>
+              <kie-pmml-implementation>legacy</kie-pmml-implementation>
+              <org.kie.server.json.fallbackClassLoader.enabled>true</org.kie.server.json.fallbackClassLoader.enabled>
+              <org.kie.server.services.jbpm.security.filesystemrealm.folder-path>${project.basedir}/target/cargo/configurations/wildfly23x/kie-fs-realm-users</org.kie.server.services.jbpm.security.filesystemrealm.folder-path>
             </systemProperties>
           </container>
         </configuration>
@@ -273,13 +180,6 @@
           <groupId>org.kie.server</groupId>
           <artifactId>kie-server-services-common</artifactId>
           <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <!-- Classes from this dependency already packaged in 'xml-apis:xml-apis'-->
-              <groupId>javax.xml.stream</groupId>
-              <artifactId>stax-api</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.kie.server</groupId>
@@ -310,21 +210,57 @@
     </profile>
     <profile>
       <id>tomcat9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>tomcat9</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>wildfly</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>wildfly</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>eap7</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>eap7</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>oracle-wls-12</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>oracle-wls-12</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>websphere9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>websphere9</value>
+        </property>
+      </activation>
     </profile>
     <profile>
       <id>springboot</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>springboot</value>
+        </property>
+      </activation>
       <properties>
         <kieserver.drools.enabled>true</kieserver.drools.enabled>
         <kieserver.prometheus.enabled>true</kieserver.prometheus.enabled>

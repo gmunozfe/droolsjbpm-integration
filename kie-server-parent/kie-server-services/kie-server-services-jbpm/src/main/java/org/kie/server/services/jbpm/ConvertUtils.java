@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.jbpm.services.api.model.NodeInstanceDesc;
 import org.jbpm.services.api.model.ProcessDefinition;
@@ -131,6 +132,7 @@ public class ConvertUtils {
                         .processId(taskSummary.getProcessId())
                         .processInstanceId(taskSummary.getProcessInstanceId())
                         .status(taskSummary.getStatus())
+                        .subject(taskSummary.getSubject())
                         .build();
                 tasks[counter] = task;
                 counter++;
@@ -427,6 +429,10 @@ public class ConvertUtils {
                 .workItemId(userTask.getWorkItemId())
                 .slaCompliance(userTask.getSlaCompliance())
                 .slaDueDate(userTask.getSlaDueDate())
+                .formName(userTask.getFormName())
+                .subject(userTask.getSubject())
+                .processType(userTask.getProcessType())
+                .correlationKey(userTask.getCorrelationKey())
                 .build();
 
         return instance;
@@ -471,6 +477,7 @@ public class ConvertUtils {
                 .inputData(userTask.getInputdata())
                 .outputData(userTask.getOutputdata())
                 .processInstanceDescription(userTask.getProcessInstanceDescription())
+                .subject(userTask.getSubject())
                 .build();
 
         return instance;
@@ -492,7 +499,7 @@ public class ConvertUtils {
     }
 
     public static org.kie.server.api.model.instance.TaskSummary convertToTaskSummary(TaskSummary taskSummary) {
-        org.kie.server.api.model.instance.TaskSummary task = org.kie.server.api.model.instance.TaskSummary.builder()
+        return org.kie.server.api.model.instance.TaskSummary.builder()
                 .id(taskSummary.getId())
                 .name(taskSummary.getName())
                 .description(taskSummary.getDescription())
@@ -509,8 +516,9 @@ public class ConvertUtils {
                 .processInstanceId(taskSummary.getProcessInstanceId())
                 .status(taskSummary.getStatusId())
                 .skipable(taskSummary.isSkipable())
-                .build();
-        return task;
+                .subject(taskSummary.getSubject())
+                .correlationKey(taskSummary.getCorrelationKey())
+                .processType(taskSummary.getProcessType()).build();
     }
 
     public static QueryDefinition convertQueryDefinition(org.jbpm.services.api.query.model.QueryDefinition queryDefinition) {
@@ -570,6 +578,7 @@ public class ConvertUtils {
             ProcessInstanceUserTaskWithVariables var = new ProcessInstanceUserTaskWithVariables();
             var.setId(desc.getTaskId());
             var.setName(desc.getName());
+            var.setDescription(desc.getDescription());
             var.setCorrelationKey(desc.getCorrelationKey());
             var.setActualOwner(desc.getActualOwner());
             var.setProcessDefinitionId(desc.getProcessId());
@@ -577,6 +586,7 @@ public class ConvertUtils {
             var.setProcessInstanceId(desc.getProcessInstanceId());
             var.setProcessVariables(desc.getProcessVariables());
             var.setInputVariables(desc.getInputdata());
+            var.setStatus(desc.getStatus());
             data.add(var);
         }
         ProcessInstanceUserTaskWithVariablesList result = new ProcessInstanceUserTaskWithVariablesList();
@@ -585,7 +595,11 @@ public class ConvertUtils {
     }
 
     public static List<org.jbpm.services.api.query.model.QueryParam> convertToServiceApiQueryParam(List<QueryParam> param) {
-        return param.stream().map(e -> new org.jbpm.services.api.query.model.QueryParam(e.getColumn(), e.getOperator(), e.getValue())).collect(toList());
+        return param.stream().map(ConvertUtils::convertToServiceApiQueryParam).collect(toList());
+    }
+
+    public static org.jbpm.services.api.query.model.QueryParam convertToServiceApiQueryParam(QueryParam param) {
+        return new org.jbpm.services.api.query.model.QueryParam(param.getColumn(), param.getOperator(), param.getValue());
     }
 
     public static String nullEmpty(String value) {
@@ -594,5 +608,9 @@ public class ConvertUtils {
         }
 
         return value;
+    }
+
+    public static List<Long> convert(Collection<? extends Number> input) {
+        return input.stream().map(Number::longValue).collect(Collectors.toList());
     }
 }

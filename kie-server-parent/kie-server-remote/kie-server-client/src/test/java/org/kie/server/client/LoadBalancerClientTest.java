@@ -15,15 +15,22 @@
 
 package org.kie.server.client;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.kie.server.api.exception.KieServicesHttpException;
 import org.kie.server.api.model.KieServerInfo;
 import org.kie.server.api.model.KieServerStateInfo;
 import org.kie.server.api.model.ServiceResponse;
+import org.kie.server.client.admin.ProcessAdminServicesClient;
 import org.kie.server.client.balancer.BalancerStrategy;
 import org.kie.server.client.balancer.LoadBalancer;
 import org.kie.server.client.balancer.impl.RoundRobinBalancerStrategy;
@@ -33,15 +40,17 @@ import org.kie.server.common.rest.NoEndpointFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import com.github.tomakehurst.wiremock.WireMockServer;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.Assert.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class LoadBalancerClientTest {
 
@@ -76,7 +85,7 @@ public class LoadBalancerClientTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
                                 "  <kie-server-state-info>\n" +
-                                "    <version>" + version + "</version>\n" +
+                                "    <server-id>" + version + "</server-id>\n" +
                                 "  </kie-server-state-info>\n" +
                                 "</response>")));
 
@@ -323,10 +332,12 @@ public class LoadBalancerClientTest {
                     Thread.sleep(20 * threadNo);
                     // Call KieServer...
                     try {
-                        ServiceResponse<KieServerStateInfo> response = this.kieClient.getServerState();
+                        KieServerStateInfo info = kieClient.getServerState().getResult();
+                        logger.debug("response {}", info.getServerId());
                         fail("Unexpected successful request");
                     } catch (NoEndpointFoundException e) {
                         // expected failed configured in "Timeout Fail followed by Success" scenario
+                        logger.debug("Expected failure Endpoint timeout", e);
                     }
 
                 } catch (Exception e) {
@@ -344,6 +355,8 @@ public class LoadBalancerClientTest {
         config.setCapabilities(Arrays.asList("KieServer"));
 
         KieServicesClient client = KieServicesFactory.newKieServicesClient(config);
+        ((AbstractKieServicesClientImpl)client).getLoadBalancer().setCheckFailedEndpoint(false);
+
 
         // Issue successful request
         ServiceResponse<KieServerStateInfo> response = client.getServerState();
@@ -351,41 +364,23 @@ public class LoadBalancerClientTest {
         Assertions.assertThat(response.getResult().getContainers()).isEmpty();
 
         // Setup 2 concurrent requests both failing with a timeout representing a temporary failure in server
+        logger.debug("Reset mappings #1");
+        wireMockServer1.resetMappings();
         wireMockServer1.stubFor(get(urlEqualTo("/state"))
                 .withHeader("Accept", equalTo("application/xml"))
-                .inScenario("Timeout Fails followed by Scan Success")
-                .whenScenarioStateIs(Scenario.STARTED)
                 .willReturn(aResponse()
                         .withFixedDelay(5100)
                         .withStatus(200)
                         .withHeader("Content-Type", "application/xml")
                         .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
                                 "  <kie-server-state-info>\n" +
-                                "    <version>1a</version>\n" +
+                                "    <server-id>1a</server-id>\n" +
                                 "  </kie-server-state-info>\n" +
-                                "</response>"))
-                .willSetStateTo("Req Timeout 1"));
-
-        wireMockServer1.stubFor(get(urlEqualTo("/state"))
-                .withHeader("Accept", equalTo("application/xml"))
-                .inScenario("Timeout Fails followed by Scan Success")
-                .whenScenarioStateIs("Req Timeout 1")
-                .willReturn(aResponse()
-                        .withFixedDelay(5100)
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/xml")
-                        .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
-                                "  <kie-server-state-info>\n" +
-                                "    <version>1b</version>\n" +
-                                "  </kie-server-state-info>\n" +
-                                "</response>"))
-                .willSetStateTo("Req Timeout 2"));
+                                "</response>")));
 
         // Add a delay to background thread scanning to ensure availableEndpoints list
         // is kept empty long enough to demonstrate failing situation.
         wireMockServer1.stubFor(get(urlEqualTo("/"))
-                .inScenario("Timeout Fails followed by Scan Success")
-                .whenScenarioStateIs("Req Timeout 2")
                 .willReturn(aResponse()
                         .withFixedDelay(500)
                         .withStatus(200)
@@ -394,52 +389,48 @@ public class LoadBalancerClientTest {
                                 "  <kie-server-info>\n" +
                                 "    <version>background scan</version>\n" +
                                 "  </kie-server-info>\n" +
-                                "</response>"))
-                .willSetStateTo("Good Req 1"));
+                                "</response>")));
 
-        // Request to indicate server is back online
-        wireMockServer1.stubFor(get(urlEqualTo("/state"))
-                .withHeader("Accept", equalTo("application/xml"))
-                .inScenario("Timeout Fails followed by Scan Success")
-                .whenScenarioStateIs("Good Req 1")
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/xml")
-                        .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
-                                "  <kie-server-state-info>\n" +
-                                "    <version>1c</version>\n" +
-                                "  </kie-server-state-info>\n" +
-                                "</response>"))
-                .willSetStateTo("Good Req 2"));
 
         // Kickoff first scenario
         int threadCount=2;
         logger.debug("Starting 2 Threads");
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch stopLatch = new CountDownLatch(threadCount);
-        for (int i=1; i<= threadCount; i++) {
-            new SendKieRequestThread(i, startLatch, stopLatch, client).start();
+        List<SendKieRequestThread> threads = new ArrayList<>();
+        for (int i = 1; i <= threadCount; i++) {
+            threads.add(new SendKieRequestThread(i, startLatch, stopLatch, client));
         }
+        threads.forEach(SendKieRequestThread::start);
+
         // Threads will be waiting to proceed, so let them off.
         startLatch.countDown();
 
         // We expect the threads to complete within 7 seconds
         stopLatch.await(7, TimeUnit.SECONDS);
         logger.debug("\nEnd of Threads - ");
-
-        // Need to sleep to ensure background thread completes.
-        logger.debug("\nSleeping for 3 seconds - ");
-        Thread.sleep(3000);
+        threads.forEach(thread -> {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                logger.debug("Interrupted", e);
+            }
+        });
 
         // Expect to now have server:/state incorrectly retained in failedEndpoints
         List<String> availableList = ((AbstractKieServicesClientImpl)client).getLoadBalancer().getAvailableEndpoints();
         availableList.forEach(item -> logger.debug("Available Endpoint : [" + item + "]"));
         List<String> failedList = ((AbstractKieServicesClientImpl)client).getLoadBalancer().getFailedEndpoints();
+        assertEquals(1, failedList.size());
         failedList.forEach(item -> logger.debug("Failed Endpoint : [" + item + "]"));
+
+
 
         // Now set up a subsequent request failure due to server temporarily not responding.");
         // Could have many successful requests up to this point after first failing scenario but as
         // soon as we have another timeout failure like below, server:/state gets moved to availableEndpoints.
+        logger.debug("Reset mappings #2");
+        wireMockServer1.resetMappings();
         wireMockServer1.stubFor(get(urlEqualTo("/state"))
                 .withHeader("Accept", equalTo("application/xml"))
                 .inScenario("Brief Timeout Fails followed by Scan Success")
@@ -449,7 +440,7 @@ public class LoadBalancerClientTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
                                 "  <kie-server-state-info>\n" +
-                                "    <version>1d</version>\n" +
+                                "    <server-id>1d</server-id>\n" +
                                 "  </kie-server-state-info>\n" +
                                 "</response>"))
                 .willSetStateTo("After Failed Req"));
@@ -462,7 +453,7 @@ public class LoadBalancerClientTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
                                 "  <kie-server-state-info>\n" +
-                                "    <version>1e</version>\n" +
+                                "    <server-id>1e</server-id>\n" +
                                 "  </kie-server-state-info>\n" +
                                 "</response>"))
                 .willSetStateTo("After success 1"));
@@ -475,33 +466,30 @@ public class LoadBalancerClientTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody("<response type=\"SUCCESS\" msg=\"Kie Server info\">\n" +
                                 "  <kie-server-info>\n" +
-                                "    <version>background scan</version>\n" +
+                                "    <server-id>background scan</server-id>\n" +
                                 "  </kie-server-info>\n" +
                                 "</response>"))
                 .willSetStateTo("After success 2"));
         logger.debug(" Current wireMockServer1 stub count =" + wireMockServer1.listAllStubMappings().getMappings().size());
 
         // Make call to failing request
+
         try {
             response = client.getServerState();
             fail("Unexpected successful request");
-        } catch (NoEndpointFoundException e) {
-            // expect failure
+        } catch (KieServerHttpRequestException e) {
+            logger.debug("Expected failure Endpoint", e);
         }
 
         // Expect to now have server:/state incorrectly retained in availableEndpoints transferred from failedEndpoints
         availableList = ((AbstractKieServicesClientImpl)client).getLoadBalancer().getAvailableEndpoints();
         availableList.forEach(item -> logger.debug("Available Endpoint : [" + item + "]"));
         failedList = ((AbstractKieServicesClientImpl)client).getLoadBalancer().getFailedEndpoints();
-        if (failedList.isEmpty()) {
-            logger.debug("Failed Endpoint : []");
-        }
-        else {
-            failedList.forEach(item -> logger.debug("Failed Endpoint : [" + item + "]"));
-        }
+        assertTrue(availableList.isEmpty());
+        assertEquals(1, failedList.size());
 
-        // Need delay here to give background thread a chance to complete scanning to see if server is online
-        Thread.sleep(1000);
+        ((AbstractKieServicesClientImpl) client).getLoadBalancer().setCheckFailedEndpoint(true);
+        ((AbstractKieServicesClientImpl) client).getLoadBalancer().checkFailedEndpoints().get(5, TimeUnit.SECONDS);
 
         // Set up what should be a successful request
         wireMockServer1.stubFor(get(urlEqualTo("/state"))
@@ -511,7 +499,7 @@ public class LoadBalancerClientTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody("<response type=\"SUCCESS\" msg=\"Kie Server state\">\n" +
                                 "  <kie-server-state-info>\n" +
-                                "    <version>1b</version>\n" +
+                                "    <server-id>1b</server-id>\n" +
                                 "  </kie-server-state-info>\n" +
                                 "</response>")));
 
@@ -536,5 +524,143 @@ public class LoadBalancerClientTest {
 
     private void assertSuccess(ServiceResponse<?> response) {
         assertEquals("Response type", ServiceResponse.ResponseType.SUCCESS, response.getType());
+    }
+
+    @Test
+    public void testFailOverWithRuleServicesClientExecuteCommandsWithResults() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer", "BRM"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+        RuleServicesClient ruleServicesClient = kieServicesClient.getServicesClient(RuleServicesClient.class);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpPostRequestAndCreateServiceResponse()
+            ruleServicesClient.executeCommandsWithResults("container-id", "<batch-execution></batch-execution>");
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
+    }
+
+    @Test
+    public void testFailOverWithUIServicesClientImplGetProcessImage() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer", "BPM-UI"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+        UIServicesClient uiServicesClient = kieServicesClient.getServicesClient(UIServicesClient.class);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpGetRequestAndCreateRawResponse()
+            uiServicesClient.getProcessImage("container-id", "process-id");
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
+    }
+
+    @Test
+    public void testFailOverWithProcessAdminServicesClientImplTriggerNode() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer", "BPM"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+        ProcessAdminServicesClient processAdminServicesClient = kieServicesClient.getServicesClient(ProcessAdminServicesClient.class);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpPostRequestAndCreateCustomResponse()
+            processAdminServicesClient.triggerNode("container-id", 1L, 1L);
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
+    }
+
+    @Test
+    public void testFailOverWithKieServicesClientImplActivateContainer() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpPutRequestAndCreateServiceResponse()
+            kieServicesClient.activateContainer("container-id");
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
+    }
+
+    @Test
+    public void testFailOverWithProcessAdminServicesClientImplAcknowledgeError() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer", "BPM"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+        ProcessAdminServicesClient processAdminServicesClient = kieServicesClient.getServicesClient(ProcessAdminServicesClient.class);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpPutRequestAndCreateCustomResponse()
+            processAdminServicesClient.acknowledgeError("container-id", "error-id");
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
+    }
+
+    @Test
+    public void testFailOverWithKieServicesClientImplDisposeContainer() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpDeleteRequestAndCreateServiceResponse()
+            kieServicesClient.disposeContainer("container-id");
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
+    }
+
+    @Test
+    public void testFailOverWithProcessAdminServicesClientImplCancelNodeInstance() throws Exception {
+        wireMockServer1.stop();
+
+        KieServicesConfiguration testConfig = config.clone();
+        testConfig.setCapabilities(Arrays.asList("KieServer", "BPM"));
+        KieServicesClient kieServicesClient = KieServicesFactory.newKieServicesClient(testConfig);
+        ProcessAdminServicesClient processAdminServicesClient = kieServicesClient.getServicesClient(ProcessAdminServicesClient.class);
+
+        try {
+            // internally tests AbstractKieServicesClientImpl.makeHttpDeleteRequestAndCreateCustomResponse()
+            processAdminServicesClient.cancelNodeInstance("container-id", 1L, 1L);
+        } catch (NoEndpointFoundException noEndpointFoundException) {
+            fail("Must be able to fail-over to wireMockServer2");
+        } catch (KieServicesHttpException kieServicesHttpException) {
+            // KieServicesHttpException(404) is okay. Just want to test fail-over
+            assertTrue(kieServicesHttpException.getUrl().contains(mockServerBaseUri2));
+        }
     }
 }

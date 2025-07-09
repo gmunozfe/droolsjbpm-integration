@@ -16,13 +16,19 @@
 
 package org.kie.server.services.jbpm.ui.form.render;
 
+import static java.util.stream.Collectors.toList;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.nio.charset.Charset;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,19 +36,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import freemarker.cache.StringTemplateLoader;
-import freemarker.template.Configuration;
-import freemarker.template.Template;
 import org.jbpm.casemgmt.api.model.CaseDefinition;
 import org.jbpm.casemgmt.api.model.CaseRole;
+import org.jbpm.document.Document;
+import org.jbpm.document.DocumentCollection;
+import org.jbpm.document.service.impl.DocumentImpl;
 import org.jbpm.services.api.model.ProcessDefinition;
 import org.kie.api.task.model.Task;
 import org.kie.server.services.jbpm.ui.form.render.model.FormField;
 import org.kie.server.services.jbpm.ui.form.render.model.FormInstance;
 import org.kie.server.services.jbpm.ui.form.render.model.FormLayout;
+import org.kie.server.services.jbpm.ui.form.render.model.ItemOption;
 import org.kie.server.services.jbpm.ui.form.render.model.LayoutColumn;
 import org.kie.server.services.jbpm.ui.form.render.model.LayoutItem;
 import org.kie.server.services.jbpm.ui.form.render.model.LayoutRow;
@@ -50,18 +58,33 @@ import org.kie.server.services.jbpm.ui.form.render.model.TableInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import freemarker.cache.StringTemplateLoader;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+
 public abstract class AbstractFormRenderer implements FormRenderer {
     
     private static final Logger logger = LoggerFactory.getLogger(AbstractFormRenderer.class);
     
-    public static final String MASTER_LAYOUT_TEMPLATE = "master";
+    public static final String MAIN_LAYOUT_TEMPLATE = "main";
     public static final String HEADER_LAYOUT_TEMPLATE = "header";
     public static final String FORM_GROUP_LAYOUT_TEMPLATE = "form-group";
     public static final String CASE_LAYOUT_TEMPLATE = "case-layout";
     public static final String PROCESS_LAYOUT_TEMPLATE = "process-layout";
     public static final String TASK_LAYOUT_TEMPLATE = "task-layout";
     public static final String TABLE_LAYOUT_TEMPLATE = "table";
-    
+
+    public static final Map<String,String> FUNCTION_MAPPING = new HashMap<>();
+
+    static {
+        FUNCTION_MAPPING.put("java.time.LocalDateTime","getFormattedLocalDateTime");
+        FUNCTION_MAPPING.put("java.time.LocalDate","getFormattedLocalDate");
+        FUNCTION_MAPPING.put("java.util.Date","getFormattedUtilDate");
+        FUNCTION_MAPPING.put("java.time.LocalTime","getFormattedLocalTime");
+        FUNCTION_MAPPING.put("java.time.OffsetDateTime","getFormattedOffsetDateTime");
+
+    }
+
     private Map<String, String> inputTypes;
     private StringTemplateLoader stringLoader = new StringTemplateLoader();
     private Configuration cfg;
@@ -73,8 +96,7 @@ public abstract class AbstractFormRenderer implements FormRenderer {
     
     private String serverPath;
     private String resourcePath;
-    
-    
+
     public AbstractFormRenderer(String serverPath, String resources) {
         this.serverPath = serverPath;
         this.resourcePath = serverPath + resources;
@@ -87,7 +109,11 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         this.inputTypes.put("ListBox", "select");
         this.inputTypes.put("RadioGroup", "radio");
         this.inputTypes.put("Document", "file");
-        this.inputTypes.put("DatePicker", "date");
+        this.inputTypes.put("DatePicker", "Date");
+        this.inputTypes.put("Slider", "slider");
+        this.inputTypes.put("DocumentCollection", "documentCollection");
+        this.inputTypes.put("MultipleSelector", "multipleSelector");
+        this.inputTypes.put("MultipleInput", "multipleInput");
 
         
         cfg = new Configuration(Configuration.VERSION_2_3_26);
@@ -107,7 +133,7 @@ public abstract class AbstractFormRenderer implements FormRenderer {
     }
     
     public String renderCase(String containerId, CaseDefinition caseDefinition, FormInstance form) {
-        List<String> scriptDataList = new ArrayList<>();        
+        List<String> scriptDataList = new ArrayList<>();
         
         
         StringBuilder jsonTemplate = new StringBuilder();
@@ -166,11 +192,10 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         parameters.put("body", output);        
         parameters.put("scriptData", buildScriptData(scriptDataList));
         parameters.put("serverPath", resourcePath);
-        String finalOutput = renderTemplate(MASTER_LAYOUT_TEMPLATE, parameters);
+        String finalOutput = renderTemplate(MAIN_LAYOUT_TEMPLATE, parameters);
         
         return finalOutput;
     }
-
 
     public String renderProcess(String containerId, ProcessDefinition processDesc, FormInstance form) {
         
@@ -217,7 +242,7 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         parameters.put("body", output);        
         parameters.put("scriptData", buildScriptData(scriptDataList));
         parameters.put("serverPath", resourcePath);
-        String finalOutput = renderTemplate(MASTER_LAYOUT_TEMPLATE, parameters);
+        String finalOutput = renderTemplate(MAIN_LAYOUT_TEMPLATE, parameters);
         
         return finalOutput;
     }
@@ -252,7 +277,10 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         
         scriptDataList.add(buildFunctionWithBody("getData", "return " + jsonTemplate.toString()));
         scriptDataList.add(buildFunctionWithBody("getTaskEndpoint", "return '" + taskEndpoint.toString() + "';"));
-        scriptDataList.add(buildFunctionWithBody("initializeForm", "taskStatus = '" + task.getTaskData().getStatus().name() + "';initTaskButtons();"));
+        scriptDataList.add(buildFunctionWithBody("initializeForm", "taskStatus = '" + task.getTaskData().getStatus().name() + "';\n" +
+                                                                   "$('input[data-slider-id]').slider({});\n" +
+                                                                   "$('input[data-role=tagsinput').tagsinput();\n" + 
+                                                                   "initTaskButtons();\n"));
         scriptDataList.add(buildFunctionWithBody("endpointSuffix", "return '" + getEndpointSuffix() + "';"));
         
         // render layout with data
@@ -267,11 +295,29 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         parameters.put("body", output);
         parameters.put("scriptData", buildScriptData(scriptDataList));
         parameters.put("serverPath", resourcePath);
-        String finalOutput = renderTemplate(MASTER_LAYOUT_TEMPLATE, parameters);
+        String finalOutput = renderTemplate(MAIN_LAYOUT_TEMPLATE, parameters);
         
         return finalOutput;
     }
     
+    public static class DocumentItem {
+        String name;
+        String content;
+
+        DocumentItem(String name, String content) {
+            this.name = name;
+            this.content = content;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getContent() {
+            return content;
+        }
+    }
+
     /**
      * Renders the entire form (including any subforms if found as nested forms)
      * @param topLevelForm - the top level form to be rendered, if needed it should include all nested forms inside or lookup mechanism
@@ -292,7 +338,7 @@ public abstract class AbstractFormRenderer implements FormRenderer {
             boolean wrapJson,
             List<String> scriptDataList) {
         FormLayout layout = form.getLayout();
-        
+
 
         if (form.getModel().getClassName() != null && wrapJson) {
             Optional<FormField> fieldForm = topLevelForm.getFields().stream()
@@ -321,10 +367,10 @@ public abstract class AbstractFormRenderer implements FormRenderer {
                 
                 for (LayoutItem item : column.getItems()) {
                     if (item.getValue() != null) {
-                        String output = item.getValue();
+                        String output = (String) item.getValue();
                         if (output.contains("${")) {
                             String uuid = UUID.randomUUID().toString();;
-                            loadTemplate(fieldLevelStringLoader, uuid, new ByteArrayInputStream(item.getValue().getBytes(Charset.forName("UTF-8"))));
+                            loadTemplate(fieldLevelStringLoader, uuid, new ByteArrayInputStream(output.getBytes(Charset.forName("UTF-8"))));
                             Map<String, Object> parameters = new HashMap<>();
                             parameters.putAll(inputs);
                             parameters.putAll(outputs);                        
@@ -349,40 +395,133 @@ public abstract class AbstractFormRenderer implements FormRenderer {
                         }
                         
                         // handle regular fields in the form 
-                        String fieldType = inputTypes.get(field.getCode());
+                        String fieldType = getFieldType(field);
                         if (fieldType != null) {
                                                     
-                            String jsType = getFieldType(field.getType());
+                            String jsType = getJSFieldType(field.getType());
                             
                             item.setId(field.getId());
                             item.setName(nonNull(field.getName()));
                             item.setLabel(nonNull(field.getLabel()));
                             item.setPlaceHolder(nonNull(field.getPlaceHolder()));
                             item.setType(fieldType);
-                            item.setValue("");
+
                             item.setOptions(field.getOptions());
                             item.setPattern(getValidationPatternByType(field.getType()));
-                            
+
+                            item.setMin(field.getMin());
+                            item.setMax(field.getMax());
+                            item.setPrecision(field.getPrecision());
+                            item.setStep(field.getStep());
+                            item.setShowTime(field.isShowTime());
+
+                            Object value = "";
                             if (inputs.get(field.getBinding()) != null) {
-                                item.setValue(inputs.get(field.getBinding()).toString());
+                                value = inputs.get(field.getBinding());
                             }
                             if (outputs.get(field.getBinding()) != null) {
-                                item.setValue(outputs.get(field.getBinding()).toString());
+                                value = outputs.get(field.getBinding());
                             }
-                            
-                            item.setReadOnly(field.isReadOnly());
-                            item.setRequired(field.isRequired());
-                            
+
+                            switch(fieldType) {
+                                case "Date":
+                                    if ("java.util.Date".equals(field.getType())) {
+                                        if (value != null && value instanceof java.util.Date) {
+                                            LocalDate utilDate = ((java.util.Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                                            value = utilDate.toString();
+                                        } else if (value != null && value.toString().length() >= 10) {
+                                            value = value.toString().substring(0, 10);
+                                        }
+                                    }
+                                    item.setValue((value != null) ? value.toString() : "");
+                                    break;
+                                case "util-date":
+                                    if (value instanceof java.util.Date) {
+                                        if (!field.isShowTime()) {
+                                            LocalDate utilDate = ((java.util.Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                                            value = utilDate.toString();
+                                        } else {
+                                            LocalDateTime utilDateTime = ((java.util.Date) value).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                                            value = utilDateTime.toString();
+                                        }
+                                        item.setValue((value != null) ? value.toString() : "");
+                                    } else {
+                                        if (field.isShowTime()) {
+                                            item.setValue((value != null) ? value.toString() : "");
+                                        } else {
+                                            item.setValue((value != null && !"".equals(value.toString())) ? LocalDateTime.parse(value.toString()).toLocalDate().toString() : "");
+                                        }
+
+                                    }
+                                    break;
+                                case "datetime-local":
+                                    if (value != null && value.toString().length() >= 10 && !field.isShowTime()) {
+                                        value = value.toString().substring(0, 10);
+                                    }
+                                    item.setValue((value != null) ? value.toString() : "");
+                                    break;
+                                case "documentCollection":
+                                    if (value instanceof DocumentCollection) {
+                                        DocumentCollection<Document> docCollection = (DocumentCollection<Document>) value;
+                                        docCollection.getDocuments().stream()
+                                                .map(e -> (DocumentImpl) e)
+                                                .forEach(DocumentImpl::load);
+
+                                        List<DocumentItem> items = docCollection.getDocuments()
+                                                .stream()
+                                                .map(e -> new DocumentItem(e.getName(), Base64.getEncoder().encodeToString(e.getContent())))
+                                                .collect(toList());
+                                        item.setValue(items);
+                                    } else {
+                                        // In case there is no document collection, just provide an empty one
+                                        item.setValue(Collections.emptyList());
+                                    }
+                                    break;
+                                case "multipleSelector":
+                                    item.setOptions(field.getListOfValues().stream().map(ItemOption::new).collect(toList()));
+                                    if(value instanceof String) {
+                                        item.setValue(Collections.singletonList(value));
+                                    } else {
+                                        item.setValue(value);
+                                    }
+                                    break;
+                                case "multipleInput":
+                                    if(value instanceof String) {
+                                        item.setValue(value);
+                                    } else if (value instanceof List){
+                                        item.setValue(String.join(",", (List) value));
+                                    } else {
+                                        item.setValue("");
+                                    }
+                                    break;
+                                default:
+                                    item.setValue((value != null) ? value.toString() : "");
+                                    break;
+                            }
+                            Set<String> tags = field.getTags();
+                            if (tags != null) {
+                                item.setRequired(tags.contains("required"));
+                                item.setReadOnly(tags.contains("readonly"));
+                            } else {
+                                item.setRequired(field.isRequired());
+                                item.setReadOnly(field.isReadOnly());
+                            }
+
                             // generate column content                    
                             Map<String, Object> parameters = new HashMap<>();
                             parameters.put("item", item);
-                            parameters.put("documentPath", getDocumentPath()); // used to generate link for documents
+                            if (("file".equals(fieldType) || "documentCollection".equals(fieldType)) && !item.getValue().equals("{}")) {
+                                parameters.put("documentPath", getDocumentPath()); // used to generate link for documents
+                            } else if ("file".equals(fieldType) && item.getValue().equals("{}")) {
+                                item.setValue("");
+                            }
+                            parameters.put("maxItems", field.getMaxLength());
                             String output = renderTemplate(FORM_GROUP_LAYOUT_TEMPLATE, parameters);
                             // append rendered content to the column content
                             content.append(output);
-                            
+
                             // add the field to json template
-                            appendFieldJSON(jsonTemplate, fieldType, field.getBinding(), field.getId(), jsType);
+                            appendFieldJSON(jsonTemplate, fieldType, field, jsType);
                         } else {
                             logger.warn("Field type {} is not supported, skipping it...", field.getCode());
                         }
@@ -401,7 +540,34 @@ public abstract class AbstractFormRenderer implements FormRenderer {
                 .append(",");
         }        
     }
-    
+
+    private String getFieldType(FormField field) {
+        String type = inputTypes.get(field.getCode());
+
+        switch (type) {
+            case "documentCollection":
+            case "multipleSelector":
+            case "multipleInput":
+                return type;
+            default:
+                switch (field.getType()) {
+                    case "java.time.LocalDateTime":
+                        return "datetime-local";
+                    case "java.util.Date":
+                        return "util-date";
+                    case "java.sql.Date":
+                    case "java.sql.Timestamp":
+                        return "datetime-local";
+                    case "java.time.LocalTime":
+                        return "time";
+                    case "java.time.OffsetDateTime":
+                        return "datetime";
+                    default:
+                        return type;
+                }
+        }
+    }
+
     protected void handleSubForm(FormInstance topLevelForm, 
             FormField field, 
             Map<String, Object> inputs, 
@@ -461,7 +627,7 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         for (TableInfo tableInfo : field.getTableInfo()) {
         
             FormField nestedField = nestedForm.getFieldByBinding(tableInfo.getProperty());
-            String jsType = getFieldType(nestedField.getType());
+            String jsType = getJSFieldType(nestedField.getType());
             tableInfo.setType(jsType);
         }
                                     
@@ -574,47 +740,120 @@ public abstract class AbstractFormRenderer implements FormRenderer {
     /*
      * json processing utilities     
      */
-    
+
     protected void appendFieldJSON(StringBuilder jsonTemplate, String type, String name, String id, String jsType) {
-        jsonTemplate
-            .append("'")
-            .append(name)
-            .append("' : ")
-            .append(jsType)
-            .append(appendExtractionExpression(type, name, id, jsType))
-            .append(")")
-            .append(",");
-    
+        jsonTemplate.append("'")
+                .append(name)
+                .append("' : ")
+                .append(getJSFieldType(type))
+                .append(appendExtractionExpression(type, name, id, jsType, false,""))
+                .append(wrapEndFieldType(type))
+                .append(",");
+    }
+
+    protected void appendFieldJSON(StringBuilder jsonTemplate, String type, FormField field, String jsType) {
+        if (isDate(type)) {
+            jsonTemplate.append("'")
+                    .append(field.getBinding())
+                    .append("' : ")
+                    .append(appendExtractionExpression(type, field.getBinding(), field.getId(), jsType, field.isShowTime(), field.getType()))
+                    .append(",");
+        } else {
+            jsonTemplate.append("'")
+                    .append(field.getBinding())
+                    .append("' : ")
+                    .append(getJSFieldType(type))
+                    .append(appendExtractionExpression(type, field.getBinding(), field.getId(), jsType, field.isShowTime(), field.getType()))
+                    .append(wrapEndFieldType(type))
+                    .append(",");
+        }
+    }
+
+    private boolean isDate(String type) {
+        return "datetime-local".equals(type) || "Date".equals(type)
+                || "time".equals(type) || "datetime".equals(type) || "util-date".equals(type);
+    }
+
+    protected String getJSFieldType(String type) {
+
+        if (type.contains("Integer") || type.contains("Double") || type.contains("Float")) {
+            return "Number(";
+        } else if (type.contains("Boolean")) {
+            return "Boolean(";
+        } else if (type.contains("Date")) {
+            return "Object(";
+        } else if (type.contains("file")
+                || type.contains("Document")
+                || type.contains("documentCollection")
+                || type.contains("multipleSelector")
+                || type.contains("multipleInput")) {
+            return "Object(";
+        } else if (type.contains("slider")) {
+            return " { \"java.lang.Double\" : Number(";
+        } else {
+            return "String(";
+        }
+
+    }
+
+    protected String wrapEndFieldType(String type) {
+        if (type.contains("slider")) {
+            return ").toFixed(2) }";
+        } else {
+            return ")";
+        }
     }
     
-    protected String appendExtractionExpression(String type, String name, String id, String jsType) {
+    protected String appendExtractionExpression(String type, String name, String id, String jsType, boolean isShowTime, String formFieldType) {
         StringBuilder jsonTemplate = new StringBuilder();
         if (type.equals("radio")) {
-            jsonTemplate            
-                .append("$('input[name=")
-                .append(name)
-                .append("]:checked').val()");
+            jsonTemplate
+                        .append("$('input[name=")
+                        .append(name)
+                        .append("]:checked').val()");
         } else if (type.equals("select")) {
-            jsonTemplate            
-                .append("$('#")
-                .append(id)
-                .append("').val()");                
+            jsonTemplate.append("$('#")
+                        .append(id)
+                        .append("').val()");
         } else if (type.equals("file")) {
-            jsonTemplate            
-                .append("getDocumentData('")
-                .append(id)
-                .append("')");                
-        } else if (type.equals("date")) {
-            jsonTemplate            
-                .append("getDateFormated('")
-                .append(id)
-                .append("')");                
-        }  else {
-            jsonTemplate            
-                .append("document.getElementById('")
-                .append(id)
-                .append("')")
-                .append(getExtractionValue(jsType));
+            jsonTemplate.append("getDocumentData('")
+                        .append(id)
+                        .append("')");
+        } else if (type.equals("Date") && !formFieldType.equals("java.util.Date") && !formFieldType.equals("java.time.LocalDate")) {
+            jsonTemplate.append("getDateFormated('")
+                    .append(id)
+                    .append("')");
+        } else if (type.equals("documentCollection")) {
+            jsonTemplate.append("getDocumentCollectionData('")
+                        .append(id)
+                        .append("')");
+        } else if(type.equals("multipleSelector")) {
+            jsonTemplate.append("getMultipleSelectorData('")
+                        .append(id)
+                        .append("')");
+        } else if(type.equals("multipleInput")) {
+            jsonTemplate.append("getMultipleInputData('")
+                        .append(id)
+                        .append("')");
+        } else if (isDate(type)) {
+            if ((type.equals("datetime-local") || type.equals("util-date")) && !isShowTime) {
+                jsonTemplate.append("getDateWithoutTime('")
+                        .append(id)
+                        .append("',")
+                        .append(FUNCTION_MAPPING.get(formFieldType))
+                        .append(") ");
+            } else {
+                jsonTemplate.append("getDate('")
+                        .append(id)
+                        .append("',")
+                        .append(FUNCTION_MAPPING.get(formFieldType))
+                        .append(") ");
+            }
+        } else {
+            jsonTemplate.append("document.getElementById('")
+                    .append(id)
+                    .append("')")
+                    .append(getExtractionValue(jsType));
         }
         
         return jsonTemplate.toString();
@@ -669,17 +908,7 @@ public abstract class AbstractFormRenderer implements FormRenderer {
         return scripts.toString();
     }
     
-    protected String getFieldType(String type) {
-        if (type.contains("Integer") || type.contains("Double") || type.contains("Float")) {
-            return "Number(";
-        } else if (type.contains("Boolean")) {
-            return "Boolean(";
-        } else if (type.contains("Document") || type.contains("Date")) {
-            return "Object(";
-        } else {
-            return "String(";
-        }
-    }
+
     
     protected String getExtractionValue(String jsType) {
         if (jsType.equals("Boolean(")) {
@@ -694,8 +923,6 @@ public abstract class AbstractFormRenderer implements FormRenderer {
             return "^\\d+$";
         } else if (type.contains("Double") || type.contains("Float")) {
             return "^\\d+(\\.\\d+)?$";
-        } else if (type.contains("Date")) {
-            return "(\\d+)(-|\\/)(\\d+)(?:-|\\/)(?:(\\d+)\\s+(\\d+):(\\d+)(?::(\\d+))?(?:\\.(\\d+))?)?";
         } else {
             return "";
         }

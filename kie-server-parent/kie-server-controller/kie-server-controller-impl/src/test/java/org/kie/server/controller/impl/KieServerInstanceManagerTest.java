@@ -108,7 +108,6 @@ public class KieServerInstanceManagerTest {
 
     @Test
     public void testGetContainersRemoteOperationWhenResponseTypeIsSUCCESS() {
-
         doReturn(containerResource).when(response).getResult();
         doReturn(response).when(client).getContainerInfo(any());
         doReturn(ServiceResponse.ResponseType.SUCCESS).when(response).getType();
@@ -148,8 +147,7 @@ public class KieServerInstanceManagerTest {
                never()).setResolvedReleasedId(any());
         verify(container,
                never()).setServerTemplateId(any());
-        verify(container,
-               never()).setStatus(any());
+        verify(container).setStatus(any());
         verify(container,
                never()).setMessages(any());
     }
@@ -247,7 +245,6 @@ public class KieServerInstanceManagerTest {
 
         doReturn(containerId).when(containerSpec).getId();
         doReturn(releaseId).when(containerSpec).getReleasedId();
-        doReturn(containerResource).when(instanceManager).makeContainerResource(container, containerSpec);
         doReturn(response).when(client).updateReleaseId(containerId, releaseId, false);
         doReturn(responseType).when(response).getType();
         doNothing().when(instanceManager).collectContainerInfo(containerSpec, client, container);
@@ -271,7 +268,6 @@ public class KieServerInstanceManagerTest {
 
         doReturn(containerId).when(containerSpec).getId();
         doReturn(releaseId).when(containerSpec).getReleasedId();
-        doReturn(containerResource).when(instanceManager).makeContainerResource(container, containerSpec);
         doReturn(response).when(client).updateReleaseId(containerId, releaseId, false);
         doReturn(responseType).when(response).getType();
         doReturn(msg).when(response).getMsg();
@@ -498,8 +494,6 @@ public class KieServerInstanceManagerTest {
         final Collection<ServerInstanceKey> serverInstanceKeys = Collections.emptyList();
 
         when(serverTemplate.getServerInstanceKeys()).thenReturn(serverInstanceKeys);
-
-        doReturn(client).when(instanceManager).getClient(any());
 
         final List<Container> containers = instanceManager.callRemoteKieServerOperation(serverTemplate, containerSpec, operation);
 

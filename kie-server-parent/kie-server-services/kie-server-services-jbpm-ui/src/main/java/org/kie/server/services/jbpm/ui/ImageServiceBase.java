@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.jbpm.process.svg.SVGImageProcessor;
 import org.jbpm.process.svg.processor.SVGProcessor;
@@ -30,6 +31,7 @@ import org.jbpm.services.api.RuntimeDataService;
 import org.jbpm.services.api.model.NodeInstanceDesc;
 import org.jbpm.services.api.model.ProcessDefinition;
 import org.jbpm.services.api.model.ProcessInstanceDesc;
+import org.kie.api.runtime.manager.audit.NodeInstanceLog;
 import org.kie.api.runtime.query.QueryContext;
 import org.kie.server.api.KieServerConstants;
 import org.kie.server.services.api.KieServerRegistry;
@@ -37,10 +39,12 @@ import org.kie.server.services.impl.locator.ContainerLocatorProvider;
 import org.kie.server.services.jbpm.ui.img.ImageReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.jbpm.services.api.RuntimeDataService.EntryType;
 
 import static org.jbpm.process.svg.processor.SVGProcessor.ACTIVE_BORDER_COLOR;
 import static org.jbpm.process.svg.processor.SVGProcessor.COMPLETED_BORDER_COLOR;
 import static org.jbpm.process.svg.processor.SVGProcessor.COMPLETED_COLOR;
+import static org.jbpm.process.svg.processor.SVGProcessor.ACTIVE_ASYNC_BORDER_COLOR;
 import static org.kie.server.api.KieServerConstants.KIE_SERVER_IMAGESERVICE_MAX_NODES;
 
 public class ImageServiceBase {
@@ -48,7 +52,7 @@ public class ImageServiceBase {
     private static final Logger logger = LoggerFactory.getLogger(ImageServiceBase.class);
 
     /**
-     * This causes the image service to limit the number of nodes (performance). 
+     * This causes the image service to limit the number of nodes (performance).
      * Due to this limitation it could cause a known issue not blurring all the nodes active or completed depending on
      * the process size.
      */
@@ -114,11 +118,12 @@ public class ImageServiceBase {
     }
 
     public String getActiveProcessImage(String containerId, long procInstId) {
-        return getActiveProcessImage(containerId, procInstId, COMPLETED_COLOR, COMPLETED_BORDER_COLOR, ACTIVE_BORDER_COLOR);
+        return getActiveProcessImage(containerId, procInstId, COMPLETED_COLOR, COMPLETED_BORDER_COLOR, ACTIVE_BORDER_COLOR, false, ACTIVE_ASYNC_BORDER_COLOR);
     }
 
     public String getActiveProcessImage(String containerId, long procInstId, String completedNodeColor,
-                                        String completedNodeBorderColor, String activeNodeBorderColor) {
+                                        String completedNodeBorderColor, String activeNodeBorderColor, Boolean showBadges,
+                                        String activeAsyncNodeBorderColor) {
         ProcessInstanceDesc instance = dataService.getProcessInstanceById(procInstId);
         if (instance == null) {
             throw new ProcessInstanceNotFoundException("No instance found for process instance id " + procInstId);
@@ -131,29 +136,51 @@ public class ImageServiceBase {
             Map<String, String> subProcessLinks = new HashMap<>();
             QueryContext qc = MAX_NODES > 0 ? new QueryContext(0, MAX_NODES) : null;
             Collection<NodeInstanceDesc> activeLogs = dataService.getProcessInstanceHistoryActive(procInstId, qc);
-            Collection<NodeInstanceDesc> completedLogs = dataService.getProcessInstanceHistoryCompleted(procInstId, qc);
+            Collection<NodeInstanceDesc> finishedLogs = dataService.getProcessInstanceHistoryFinished(procInstId, qc);
+            Collection<NodeInstanceDesc> fullLogs = dataService.getProcessInstanceFullHistory(procInstId, qc);
+
+            // Async active nodes don't have any related completed node instance
+            List<String> activeAsyncNodes =
+                    fullLogs.stream()
+                            .filter(nodeInstanceDesc ->
+                                            (((org.jbpm.kie.services.impl.model.NodeInstanceDesc) nodeInstanceDesc).getType() == NodeInstanceLog.TYPE_ASYNC_ENTER) &&
+                                                    finishedLogs.stream().noneMatch(nodeInst -> nodeInstanceDesc.getNodeId().equals(nodeInst.getNodeId())))
+                            .map(NodeInstanceDesc::getNodeId).collect(Collectors.toList());
+
             Map<Long, String> active = new HashMap<Long, String>();
             List<String> completed = new ArrayList<String>();
 
             for (NodeInstanceDesc activeNode : activeLogs) {
                 active.put(activeNode.getId(), activeNode.getNodeId());
-
-                populateSubProcessLink(containerId, activeNode, subProcessLinks);
             }
 
-            for (NodeInstanceDesc completeNode : completedLogs) {
+            for (NodeInstanceDesc completeNode : finishedLogs) {
                 completed.add(completeNode.getNodeId());
 
                 active.remove(completeNode.getId());
-
                 populateSubProcessLink(containerId, completeNode, subProcessLinks);
+            }
+            // The code related to JBPM-9740 and JBPM-9821 and JBPM-5304
+            activeLogs.forEach(activeNode -> {
+                populateSubProcessLink(containerId, activeNode, subProcessLinks);
+            });
+
+            fullLogs.stream().filter(node -> ((org.jbpm.kie.services.impl.model.NodeInstanceDesc) node).getType() != EntryType.START.getValue() && ((org.jbpm.kie.services.impl.model.NodeInstanceDesc) node).getType() != EntryType.END.getValue())
+                    .forEach(node -> populateSubProcessLink(containerId, node, subProcessLinks));
+            Map<String, Long> badges = null;
+            if (showBadges) {
+                Collection<NodeInstanceDesc> allNodes = new ArrayList<>();
+                allNodes.addAll(finishedLogs);
+                allNodes.addAll(activeLogs);
+
+                badges = allNodes.stream().collect(Collectors.groupingBy(NodeInstanceDesc::getNodeId, Collectors.counting()));
             }
 
             ByteArrayInputStream svgStream = new ByteArrayInputStream(imageSVG);
 
-            imageSVGString = SVGImageProcessor.transform(svgStream, completed, new ArrayList<String>(active.values()),
+            imageSVGString = SVGImageProcessor.transform(svgStream, completed, new ArrayList<String>(active.values()), activeAsyncNodes,
                                                          subProcessLinks, completedNodeColor, completedNodeBorderColor,
-                                                         activeNodeBorderColor);
+                                                         activeNodeBorderColor, activeAsyncNodeBorderColor, badges);
 
             return imageSVGString;
         }

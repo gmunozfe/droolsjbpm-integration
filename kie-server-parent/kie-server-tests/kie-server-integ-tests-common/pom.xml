@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.kie.server</groupId>
     <artifactId>kie-server-tests</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-server-integ-tests-common</artifactId>
@@ -16,24 +16,11 @@
     <java.module.name>org.kie.server.itests.common</java.module.name>
   </properties>
   <dependencies>
+    <!-- Used in shared classes for Before and After steps -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>compile</scope>
-    </dependency>
-
-    <!-- core deps -->
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.drools</groupId>
-      <artifactId>drools-compiler</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie</groupId>
-      <artifactId>kie-ci</artifactId>
     </dependency>
 
     <!-- kie server deps -->
@@ -41,70 +28,35 @@
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-api</artifactId>
     </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-services-common</artifactId>
-      <exclusions>
-        <exclusion>
-          <!-- Classes from this dependency already packaged in 'xml-apis:xml-apis' -->
-          <groupId>javax.xml.stream</groupId>
-          <artifactId>stax-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
 
+    <!-- Clients -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-client</artifactId>
     </dependency>
     <dependency>
       <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-rest-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-controller-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-controller-rest</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
       <artifactId>kie-server-controller-client</artifactId>
     </dependency>
-
+    <!-- Used in KieServerRouterClient -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-router-proxy</artifactId>
     </dependency>
-
-    <!-- Prometheus Extension -->
+    <!-- Used in KieControllerExecutor -->
     <dependency>
       <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-rest-prometheus</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-services-prometheus</artifactId>
-      <scope>test</scope>
+      <artifactId>kie-server-controller-standalone-impl</artifactId>
     </dependency>
 
-    <!-- Scenario Simulation Extension -->
+    <!-- Used for embedded components creation -->
     <dependency>
       <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-rest-scenario-simulation</artifactId>
-      <scope>test</scope>
+      <artifactId>kie-server-services-common</artifactId>
     </dependency>
     <dependency>
       <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-services-scenario-simulation</artifactId>
-      <scope>test</scope>
+      <artifactId>kie-server-rest-common</artifactId>
     </dependency>
 
     <!-- Logging -->
@@ -113,17 +65,7 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
 
-    <!-- REST -->
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>tjws</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
+    <!-- Used for REST operations -->
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-jaxrs</artifactId>
@@ -138,48 +80,9 @@
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-client</artifactId>
     </dependency>
-
-    <!--  Stay with httpcomponents: it will save us pain (as opposed to changing from resteasy to cxf to cxf 3.0, etc. -->
     <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>fluent-hc</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- JSON/JAXB -->
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-xc</artifactId>
-    </dependency>
-
-    <!-- Replacement for the above excluded 'commons-logging:commons-logging' -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <scope>runtime</scope>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-undertow</artifactId>
     </dependency>
 
     <!-- test -->
@@ -192,12 +95,14 @@
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
     </dependency>
+
+    <!-- Misc usage -->
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
     </dependency>
 
-    <!-- Cargo dependencies -->
+    <!-- Cargo dependencies, used in ContainerRemoteController -->
     <dependency>
       <groupId>org.codehaus.cargo</groupId>
       <artifactId>cargo-core-api-container</artifactId>
@@ -221,6 +126,7 @@
       <artifactId>cargo-core-container-wildfly</artifactId>
     </dependency>
 
+    <!-- Deployments for application servers -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server</artifactId>
@@ -241,19 +147,6 @@
       <classifier>ee8</classifier>
       <type>war</type>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.server</groupId>
-      <artifactId>kie-server-controller-standalone-impl</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kie.soup</groupId>
-      <artifactId>kie-soup-maven-support</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.kie.soup</groupId>
-      <artifactId>kie-soup-maven-integration</artifactId>
     </dependency>
   </dependencies>
 
@@ -311,7 +204,7 @@
     <plugins>
       <plugin>
         <groupId>org.codehaus.cargo</groupId>
-        <artifactId>cargo-maven2-plugin</artifactId>
+        <artifactId>cargo-maven3-plugin</artifactId>
         <configuration>
           <container>
             <systemProperties>
@@ -324,11 +217,11 @@
               <org.kie.scenariosimulation.server.ext.disabled>true</org.kie.scenariosimulation.server.ext.disabled>
               <org.kie.swagger.server.ext.disabled>true</org.kie.swagger.server.ext.disabled>
               <kie.maven.settings.custom>${project.build.testOutputDirectory}/kie-server-testing-server-custom-settings.xml</kie.maven.settings.custom>
+              <org.kie.server.services.jbpm.security.filesystemrealm.folder-path>${project.basedir}/target/cargo/configurations/wildfly23x/kie-fs-realm-users</org.kie.server.services.jbpm.security.filesystemrealm.folder-path>
             </systemProperties>
           </container>
         </configuration>
       </plugin>
     </plugins>
   </build>
-
 </project>

@@ -16,10 +16,13 @@
 package org.kie.server.integrationtests.jbpm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.kie.api.runtime.process.ProcessInstance.SLA_MET;
 import static org.kie.api.runtime.process.ProcessInstance.SLA_NA;
 import static org.kie.api.runtime.process.ProcessInstance.SLA_PENDING;
 import static org.kie.api.runtime.process.ProcessInstance.SLA_VIOLATED;
+import static org.kie.api.runtime.process.ProcessInstance.STATE_ABORTED;
 import static org.kie.api.runtime.process.ProcessInstance.STATE_ACTIVE;
 import static org.kie.api.runtime.process.ProcessInstance.STATE_COMPLETED;
 
@@ -36,6 +39,7 @@ import org.kie.internal.runtime.conf.RuntimeStrategy;
 import org.kie.server.api.KieServerConstants;
 import org.kie.server.api.model.KieServerConfigItem;
 import org.kie.server.api.model.ReleaseId;
+import org.kie.server.api.model.admin.TimerInstance;
 import org.kie.server.api.model.instance.NodeInstance;
 import org.kie.server.api.model.instance.ProcessInstance;
 import org.kie.server.api.model.instance.TaskSummary;
@@ -152,7 +156,7 @@ public class SLAComplianceIntegrationTest extends JbpmKieServerBaseIntegrationTe
         activeNodes = processClient.findActiveNodeInstances(CONTAINER_ID, pid, 0, 10);
         assertThat(activeNodes).hasSize(1);
         taskNode = activeNodes.get(0);
-        assertNodeInstance(taskNode, "Hello", SLA_VIOLATED);
+        assertNodeInstance(taskNode, "Hello", SLA_VIOLATED, -1);
 
         taskClient.completeAutoProgress(CONTAINER_ID, task.getId(), USER_YODA, null);
         tasks = taskClient.findTasksAssignedAsPotentialOwner(USER_YODA, 0, 10);
@@ -196,22 +200,55 @@ public class SLAComplianceIntegrationTest extends JbpmKieServerBaseIntegrationTe
         assertProcessInstance(pid, STATE_COMPLETED, SLA_NA);
 
     }
+    
+    @Test(timeout = 60 * 1000)
+    public void testUpdateSLAOnProcess() throws Exception {
+        Long processInstanceId = processClient.startProcess(CONTAINER_ID, PROCESS_ID_SLA_ON_PROCESS, new HashMap<>());
+        // SLA on 1 hour
+        assertProcessInstance(processInstanceId, STATE_ACTIVE, SLA_PENDING, 3630*1000);
+
+        List<TimerInstance> timers = processAdminClient.getTimerInstances(CONTAINER_ID, processInstanceId);
+        assertNotNull(timers);
+        assertEquals(1, timers.size());
+
+        TimerInstance timerInstance = timers.get(0);
+        assertNotNull(timerInstance);
+        assertEquals("[SLA-Process] SLA On Process", timerInstance.getTimerName());
+
+        processAdminClient.updateTimer(CONTAINER_ID, processInstanceId, timerInstance.getId(), 5, 0, 0);
+        assertProcessInstance(processInstanceId, STATE_ACTIVE, SLA_PENDING, -1);
+        
+        // Let's wait for SLA violation
+        KieServerSynchronization.waitForProcessInstanceSLAViolated(queryClient, processInstanceId, 10_000L);
+        assertProcessInstance(processInstanceId, STATE_ACTIVE, SLA_VIOLATED, -1);
+            
+        processClient.abortProcessInstance(CONTAINER_ID, processInstanceId);
+        assertProcessInstance(processInstanceId, STATE_ABORTED, SLA_VIOLATED);
+    }
 
     private void assertProcessInstance(Long pid, int processState, int slaStatus) {
+        assertProcessInstance(pid, processState, slaStatus, 30000);
+    }
+    
+    private void assertProcessInstance(Long pid, int processState, int slaStatus, long deltaTime) {
         assertThat(pid).isNotNull();
         ProcessInstance pi = queryClient.findProcessInstanceById(pid);
         assertThat(pi.getState()).isEqualTo(processState);
         assertThat(pi.getSlaCompliance()).isEqualTo(slaStatus);
-        if (slaStatus != SLA_NA) {
-            assertThat(pi.getSlaDueDate()).isCloseTo(new Date(), 30000);
+        if (slaStatus != SLA_NA && deltaTime > 0) {
+            assertThat(pi.getSlaDueDate()).isCloseTo(new Date(), deltaTime);
         }
     }
 
-    private void assertNodeInstance(NodeInstance ni, String nodeName, int slaStatus) {
+     private void assertNodeInstance(NodeInstance ni, String nodeName, int slaStatus) {
+        assertNodeInstance(ni, nodeName, slaStatus, 30000);
+     }
+
+    private void assertNodeInstance(NodeInstance ni, String nodeName, int slaStatus, long deltaTime) {
         assertThat(ni.getName()).isEqualTo(nodeName);
         assertThat(ni.getSlaCompliance()).isEqualTo(slaStatus);
-        if (slaStatus != SLA_NA) {
-            assertThat(ni.getSlaDueDate()).isCloseTo(new Date(), 30000);
+        if (slaStatus != SLA_NA && deltaTime > 0) {
+            assertThat(ni.getSlaDueDate()).isCloseTo(new Date(), deltaTime);
         }
     }
 

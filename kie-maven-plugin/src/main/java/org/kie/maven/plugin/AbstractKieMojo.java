@@ -16,10 +16,25 @@
 package org.kie.maven.plugin;
 
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.drools.compiler.kie.builder.impl.InternalKieModule;
+import org.kie.memorycompiler.JavaConfiguration;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public abstract class AbstractKieMojo extends AbstractMojo {
+
+    @Parameter(property = "dumpKieSourcesFolder", defaultValue = "")
+    protected String dumpKieSourcesFolder;
+
+    @Parameter(property = "javaCompiler", defaultValue = "ecj")
+    private String javaCompiler;
+
+    protected JavaConfiguration.CompilerType getCompilerType() {
+        return javaCompiler.equalsIgnoreCase("native") ? JavaConfiguration.CompilerType.NATIVE : JavaConfiguration.CompilerType.ECLIPSE;
+    }
 
     protected void setSystemProperties(Map<String, String> properties) {
 
@@ -30,6 +45,13 @@ public abstract class AbstractKieMojo extends AbstractMojo {
             }
             getLog().debug("Configured system properties were successfully set.");
         }
+    }
+
+    protected List<String> getFilesByType(InternalKieModule kieModule, String fileType) {
+        return kieModule.getFileNames()
+                .stream()
+                .filter(f -> f.endsWith(fileType))
+                .collect(Collectors.toList());
     }
 
 }

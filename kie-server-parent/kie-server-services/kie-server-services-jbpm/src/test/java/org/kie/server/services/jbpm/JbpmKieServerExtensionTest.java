@@ -42,6 +42,7 @@ import org.jbpm.services.api.model.DeploymentUnit;
 import org.jbpm.services.api.model.ProcessInstanceDesc;
 import org.jbpm.services.api.query.QueryService;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,10 +78,10 @@ import org.mockito.stubbing.Answer;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyList;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -213,15 +214,25 @@ public class JbpmKieServerExtensionTest {
 
     @Test
     public void testDisposePRODUCTIONContainer() throws IOException {
-        testDispose(KieServerMode.PRODUCTION);
+        testDispose(KieServerMode.PRODUCTION, false);
     }
 
     @Test
     public void testDisposeSNAPSHOTContainer() throws IOException {
-        testDispose(KieServerMode.DEVELOPMENT);
+        testDispose(KieServerMode.DEVELOPMENT, false);
     }
 
-    private void testDispose(KieServerMode mode) throws IOException {
+    @Test
+    public void testDisposePRODUCTIONContainerWithAbort() throws IOException {
+        testDispose(KieServerMode.PRODUCTION, true);
+    }
+
+    @Test
+    public void testDisposeSNAPSHOTContainerWithAbort() throws IOException {
+        testDispose(KieServerMode.DEVELOPMENT, true);
+    }
+
+    private void testDispose(KieServerMode mode, boolean abort) throws IOException {
         this.mode = mode;
 
         String version;
@@ -241,14 +252,14 @@ public class JbpmKieServerExtensionTest {
         params.put(KieServerConstants.KIE_SERVER_PARAM_MODULE_METADATA, metaData);
         params.put(KieServerConstants.KIE_SERVER_PARAM_MESSAGES, messages);
         params.put(KieServerConstants.KIE_SERVER_PARAM_RESET_BEFORE_UPDATE, Boolean.FALSE);
+        params.put(KieServerConstants.IS_DISPOSE_CONTAINER_PARAM, abort);
 
         extension.disposeContainer(CONTAINER_ID, new KieContainerInstanceImpl(CONTAINER_ID, KieContainerStatus.STARTED, kieContainer), params);
 
-        if(mode.equals(KieServerMode.DEVELOPMENT)) {
+        if (abort) {
             verify(deploymentService).undeploy(any(), beforeUndeployCaptor.capture());
-
             Function<DeploymentUnit, Boolean> function = beforeUndeployCaptor.getValue();
-
+            Assert.assertNotNull(function);
             function.apply(deploymentUnit);
 
             verify(runtimeDataService).getProcessInstancesByDeploymentId(eq(CONTAINER_ID), anyList(), any());
@@ -257,8 +268,16 @@ public class JbpmKieServerExtensionTest {
             verify(session, times(activeProcessInstances.size())).abortProcessInstance(eq(new Long(1)));
             verify(runimeManager, times(activeProcessInstances.size())).disposeRuntimeEngine(any());
         } else {
-            verify(deploymentService).undeploy(any());
+            if (mode.equals(KieServerMode.PRODUCTION)) {
+                verify(deploymentService).undeploy(any());
+            } else {
+                verify(deploymentService).undeploy(any(), beforeUndeployCaptor.capture());
+                Function<DeploymentUnit, Boolean> function = beforeUndeployCaptor.getValue();
+                assertNotNull(function);
+                function.apply(deploymentUnit);
+            }
         }
+
     }
 
     @Test

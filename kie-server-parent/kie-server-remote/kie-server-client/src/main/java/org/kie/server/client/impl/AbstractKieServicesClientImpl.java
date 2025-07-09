@@ -36,6 +36,7 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import org.kie.server.api.KieServerConstants;
 import org.kie.server.api.commands.CommandScript;
@@ -48,12 +49,14 @@ import org.kie.server.api.marshalling.MarshallingException;
 import org.kie.server.api.marshalling.MarshallingFormat;
 import org.kie.server.api.model.ServiceResponse;
 import org.kie.server.api.model.ServiceResponsesList;
+import org.kie.server.api.rest.RestURI;
 import org.kie.server.client.KieServicesConfiguration;
 import org.kie.server.client.balancer.LoadBalancer;
 import org.kie.server.client.jms.ResponseHandler;
 import org.kie.server.common.rest.KieServerHttpRequest;
 import org.kie.server.common.rest.KieServerHttpRequestException;
 import org.kie.server.common.rest.KieServerHttpResponse;
+import org.kie.server.common.rest.NoEndpointFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +82,7 @@ public abstract class AbstractKieServicesClientImpl {
 
     public AbstractKieServicesClientImpl(KieServicesConfiguration config) {
         this.config = config.clone();
-        this.loadBalancer = config.getLoadBalancer() == null ? LoadBalancer.getDefault(config.getServerUrl()) : config.getLoadBalancer();
+        this.loadBalancer = config.getLoadBalancer() == null ? LoadBalancer.getDefault(config) : config.getLoadBalancer();
         this.classLoader = Thread.currentThread().getContextClassLoader() != null ? Thread.currentThread().getContextClassLoader() : CommandScript.class.getClassLoader();
         this.marshaller = MarshallerFactory.getMarshaller(config.getExtraClasses(), config.getMarshallingFormat(), classLoader);
         this.responseHandler = config.getResponseHandler();
@@ -87,7 +90,7 @@ public abstract class AbstractKieServicesClientImpl {
 
     public AbstractKieServicesClientImpl(KieServicesConfiguration config, ClassLoader classLoader) {
         this.config = config.clone();
-        this.loadBalancer = config.getLoadBalancer() == null ? LoadBalancer.getDefault(config.getServerUrl()) : config.getLoadBalancer();
+        this.loadBalancer = config.getLoadBalancer() == null ? LoadBalancer.getDefault(config) : config.getLoadBalancer();
         this.classLoader = classLoader;
         this.marshaller = MarshallerFactory.getMarshaller( config.getExtraClasses(), config.getMarshallingFormat(), classLoader );
         this.responseHandler = config.getResponseHandler();
@@ -162,21 +165,25 @@ public abstract class AbstractKieServicesClientImpl {
     }
 
     protected void sendTaskOperation(String containerId, Long taskId, String operation, String queryString) {
+        this.sendTaskOperation(containerId, taskId, operation, queryString, null);
+    }
+
+    protected void sendTaskOperation(String containerId, Long taskId, String operation, String queryString, Object data) {
         Map<String, Object> valuesMap = new HashMap<String, Object>();
         valuesMap.put(CONTAINER_ID, containerId);
         valuesMap.put(TASK_INSTANCE_ID, taskId);
 
         makeHttpPutRequestAndCreateCustomResponse(
-                build(loadBalancer.getUrl(), operation, valuesMap) + queryString, null, String.class, getHeaders(null));
+                build(loadBalancer.getUrl(), operation, valuesMap) + queryString, data, String.class, getHeaders(null));
     }
 
     @SuppressWarnings("unchecked")
     protected <T> ServiceResponse<T> makeHttpGetRequestAndCreateServiceResponse(String uri, Class<T> resultType) {
 
-        logger.debug("About to send GET request to '{}'", uri);
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
+                logger.debug("About to send GET request to '{}'", url);
                 return newRequest(url).get();
             }
         });
@@ -184,7 +191,7 @@ public abstract class AbstractKieServicesClientImpl {
 
         owner.setConversationId(response.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER));
         if ( response.code() == Response.Status.OK.getStatusCode() ) {
-            ServiceResponse serviceResponse = deserialize( response.body(), ServiceResponse.class );
+            ServiceResponse<T> serviceResponse = deserialize( response.body(), ServiceResponse.class );
             checkResultType( serviceResponse, resultType );
             return serviceResponse;
         } else {
@@ -193,10 +200,11 @@ public abstract class AbstractKieServicesClientImpl {
     }
 
     protected <T> T makeHttpGetRequestAndCreateCustomResponse(String uri, Class<T> resultType) {
-        logger.debug("About to send GET request to '{}'", uri);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation() {
             @Override
             public KieServerHttpRequest doOperation(String url) {
+                logger.debug("About to send GET request to '{}'", url);
                 return newRequest(url).get();
             }
         });
@@ -210,11 +218,34 @@ public abstract class AbstractKieServicesClientImpl {
         }
     }
 
-    protected String makeHttpGetRequestAndCreateRawResponse(String uri) {
-        logger.debug("About to send GET request to '{}'", uri);
+    protected <T> T makeHttpGetRequestAndCreateCustomResponseWithHandleNotFound(String uri, Class<T> resultType) {
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation() {
             @Override
             public KieServerHttpRequest doOperation(String url) {
+                logger.debug("About to send GET request to '{}'", url);
+                return newRequest(url).get();
+            }
+        });
+        KieServerHttpResponse response = request.response();
+
+        owner.setConversationId(response.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER));
+        if (response.code() == Response.Status.NOT_FOUND.getStatusCode()) {
+            return null;
+        }
+        if (response.code() == Response.Status.OK.getStatusCode()) {
+            return deserialize(response.body(), resultType);
+        } else {
+            throw createExceptionForUnexpectedResponseCode(request, response);
+        }
+    }
+
+    protected String makeHttpGetRequestAndCreateRawResponse(String uri) {
+
+        KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation() {
+            @Override
+            public KieServerHttpRequest doOperation(String url) {
+                logger.debug("About to send GET request to '{}'", url);
                 return newRequest(url).get();
             }
         });
@@ -232,11 +263,12 @@ public abstract class AbstractKieServicesClientImpl {
     }
 
     protected String makeHttpGetRequestAndCreateRawResponse(String uri, Map<String, String> headers) {
-        logger.debug("About to send GET request to '{}'", uri);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest( uri ).headers(headers).get();
+                logger.debug("About to send GET request to '{}'", url);
+                return newRequest( url ).headers(headers).get();
             }
         });
         KieServerHttpResponse response = request.response();
@@ -264,17 +296,34 @@ public abstract class AbstractKieServicesClientImpl {
         return makeHttpPostRequestAndCreateServiceResponse( uri, serialize( bodyObject ), resultType, headers );
     }
 
+    protected <T> ServiceResponse<T> makeHttpPostRequestAndCreateServiceResponse(String uri,
+                                                                                 Object bodyObject,
+                                                                                 Class<T> resultType,
+                                                                                 Map<String, String> headers,
+                                                                                 Status status) {
+        return makeHttpPostRequestAndCreateServiceResponse(uri, serialize(bodyObject), resultType, headers, status);
+    }
+
     protected <T> ServiceResponse<T> makeHttpPostRequestAndCreateServiceResponse(String uri, String body, Class<T> resultType) {
         return  makeHttpPostRequestAndCreateServiceResponse( uri, body, resultType, new HashMap<String, String>() );
     }
 
-    @SuppressWarnings("unchecked")
     protected <T> ServiceResponse<T> makeHttpPostRequestAndCreateServiceResponse(String uri, String body, Class<T> resultType, Map<String, String> headers) {
-        logger.debug("About to send POST request to '{}' with payload '{}'", uri, body);
+        return makeHttpPostRequestAndCreateServiceResponse(uri, body, resultType, headers, Status.OK);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <T> ServiceResponse<T> makeHttpPostRequestAndCreateServiceResponse(String uri,
+                                                                                 String body,
+                                                                                 Class<T> resultType,
+                                                                                 Map<String, String> headers,
+                                                                                 Status status) {
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest( uri ).headers(headers).body(body).post();
+               logger.debug("About to send POST request to '{}' with payload '{}'", url, body);
+               return newRequest( url ).headers(headers).body(body).post();
             }
         });
 
@@ -282,13 +331,14 @@ public abstract class AbstractKieServicesClientImpl {
 
         owner.setConversationId(response.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER));
 
-        if ( response.code() == Response.Status.OK.getStatusCode() ) {
-            ServiceResponse serviceResponse = deserialize( response.body(), ServiceResponse.class );
+        if (response.code() == status.getStatusCode()) {
+            ServiceResponse<T> serviceResponse = deserialize( response.body(), ServiceResponse.class );
             checkResultType( serviceResponse, resultType );
             return serviceResponse;
         } else {
             throw createExceptionForUnexpectedResponseCode( request, response );
         }
+
     }
 
 
@@ -301,11 +351,12 @@ public abstract class AbstractKieServicesClientImpl {
     }
 
     protected <T> T makeHttpPostRequestAndCreateCustomResponse(String uri, String body, Class<T> resultType, Map<String, String> headers) {
-        logger.debug("About to send POST request to '{}' with payload '{}'", uri, body);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest(uri ).headers(headers).body(body).post();
+                logger.debug("About to send POST request to '{}' with payload '{}'", url, body);
+                return newRequest(url ).headers(headers).body(body).post();
             }
         });
 
@@ -329,11 +380,12 @@ public abstract class AbstractKieServicesClientImpl {
 
     @SuppressWarnings("unchecked")
     protected <T> ServiceResponse<T> makeHttpPutRequestAndCreateServiceResponse(String uri, String body, Class<T> resultType) {
-        logger.debug("About to send PUT request to '{}' with payload '{}'", uri, body);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest(uri).body(body).put();
+                logger.debug("About to send PUT request to '{}' with payload '{}'", url, body);
+                return newRequest(url).body(body).put();
             }
         });
 
@@ -343,7 +395,7 @@ public abstract class AbstractKieServicesClientImpl {
 
         if ( response.code() == Response.Status.CREATED.getStatusCode() ||
                 response.code() == Response.Status.BAD_REQUEST.getStatusCode() ) {
-            ServiceResponse serviceResponse = deserialize( response.body(), ServiceResponse.class );
+            ServiceResponse<T> serviceResponse = deserialize( response.body(), ServiceResponse.class );
             checkResultType( serviceResponse, resultType );
             return serviceResponse;
         } else {
@@ -357,13 +409,14 @@ public abstract class AbstractKieServicesClientImpl {
         return makeHttpPutRequestAndCreateCustomResponse(uri, serialize(bodyObject), resultType, headers);
     }
 
-    @SuppressWarnings("unchecked")
+
     protected <T> T makeHttpPutRequestAndCreateCustomResponse(String uri, String body, Class<T> resultType, Map<String, String> headers) {
-        logger.debug("About to send PUT request to '{}' with payload '{}'", uri, body);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest( uri ).headers(headers).body(body).put();
+                logger.debug("About to send PUT request to '{}' with payload '{}'", url, body);
+                return newRequest( url ).headers(headers).body(body).put();
             }
         });
 
@@ -382,11 +435,12 @@ public abstract class AbstractKieServicesClientImpl {
 
     @SuppressWarnings("unchecked")
     protected <T> ServiceResponse<T> makeHttpDeleteRequestAndCreateServiceResponse(String uri, Class<T> resultType) {
-        logger.debug("About to send DELETE request to '{}' ", uri);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest( uri ).delete();
+                logger.debug("About to send DELETE request to '{}' ", url);
+                return newRequest( url ).delete();
             }
         });
 
@@ -395,7 +449,7 @@ public abstract class AbstractKieServicesClientImpl {
         owner.setConversationId(response.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER));
 
         if ( response.code() == Response.Status.OK.getStatusCode() ) {
-            ServiceResponse serviceResponse = deserialize( response.body(), ServiceResponse.class );
+            ServiceResponse<T> serviceResponse = deserialize( response.body(), ServiceResponse.class );
             checkResultType( serviceResponse, resultType );
             return serviceResponse;
         } else {
@@ -403,13 +457,13 @@ public abstract class AbstractKieServicesClientImpl {
         }
     }
 
-    @SuppressWarnings("unchecked")
     protected <T> T makeHttpDeleteRequestAndCreateCustomResponse(String uri, Class<T> resultType) {
-        logger.debug("About to send DELETE request to '{}' ", uri);
+
         KieServerHttpRequest request = invoke(uri, new RemoteHttpOperation(){
             @Override
             public KieServerHttpRequest doOperation(String url) {
-                return newRequest( uri ).delete();
+                logger.debug("About to send DELETE request to '{}' ", url);
+                return newRequest( url ).delete();
             }
         });
 
@@ -434,7 +488,6 @@ public abstract class AbstractKieServicesClientImpl {
                 KieServerHttpRequest.newRequest( uri ).followRedirects( true ).timeout( config.getTimeout() );
         httpRequest.accept( getMediaType( config.getMarshallingFormat() ) );
         httpRequest.header(KieServerConstants.KIE_CONTENT_TYPE_HEADER, config.getMarshallingFormat().toString());
-
         if (config.getHeaders() != null) {
             for (Map.Entry<String, String> header : config.getHeaders().entrySet()) {
                 httpRequest.header(header.getKey(), header.getValue());
@@ -449,6 +502,7 @@ public abstract class AbstractKieServicesClientImpl {
                 httpRequest.header(config.getCredentialsProvider().getHeaderName(), authorization);
             }
         }
+        httpRequest.clientCertificate(config.getClientCertificate());
         // apply conversationId
         if (owner.getConversationId() != null) {
             httpRequest.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER, owner.getConversationId());
@@ -638,7 +692,7 @@ public abstract class AbstractKieServicesClientImpl {
     protected String buildQueryString(String paramName, List<?> items) {
         StringBuilder builder = new StringBuilder("?");
         for (Object o : items) {
-            builder.append(paramName).append("=").append(o).append("&");
+            builder.append(paramName).append("=").append(RestURI.encode(o)).append("&");
         }
         builder.deleteCharAt(builder.length()-1);
 
@@ -653,13 +707,16 @@ public abstract class AbstractKieServicesClientImpl {
 
         return headers;
     }
+    
+    protected String getUserQueryStr(String userId, char prefix) {
+        if (BYPASS_AUTH_USER && userId != null) {
+            return prefix + "user=" + RestURI.encode(userId);
+        }
+        return "";
+    }
 
     protected String getUserQueryStr(String userId) {
-        if (BYPASS_AUTH_USER && userId != null) {
-            return "?user=" + userId;
-        }
-
-        return "";
+        return getUserQueryStr(userId, '?');
     }
 
     protected String getUserAndPagingQueryString(String userId, Integer page, Integer pageSize) {
@@ -681,7 +738,7 @@ public abstract class AbstractKieServicesClientImpl {
         } else {
             queryString.append("&");
         }
-        queryString.append(name).append("=").append(value);
+        queryString.append(name).append("=").append(RestURI.encode(value));
 
         return queryString.toString();
     }
@@ -695,7 +752,7 @@ public abstract class AbstractKieServicesClientImpl {
                 queryString.append("&");
             }
             for (Object value : values) {
-                queryString.append(name).append("=").append(value).append("&");
+                queryString.append(name).append("=").append(RestURI.encode(value)).append("&");
             }
             queryString.deleteCharAt(queryString.length() - 1);
         }
@@ -736,7 +793,7 @@ public abstract class AbstractKieServicesClientImpl {
                 queryString.append("&");
             }
             for (Object value : values) {
-                queryString.append(name).append("=").append(value).append("&");
+                queryString.append(name).append("=").append(RestURI.encode(value)).append("&");
             }
             queryString.deleteCharAt(queryString.length() - 1);
         }
@@ -764,23 +821,35 @@ public abstract class AbstractKieServicesClientImpl {
  * override of the regular method to allow backward compatibility for string based result of ServiceResponse
  */
     protected <T> ServiceResponse<T> makeBackwardCompatibleHttpPostRequestAndCreateServiceResponse(String uri, Object body, Class<T> resultType, Map<String, String> headers) {
+        return makeBackwardCompatibleHttpPostRequestAndCreateServiceResponse(uri, body, resultType, headers, Status.OK);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <T> ServiceResponse<T> makeBackwardCompatibleHttpPostRequestAndCreateServiceResponse(String uri,
+                                                                                                   Object body,
+                                                                                                   Class<T> resultType,
+                                                                                                   Map<String, String> headers,
+                                                                                                   Status expectedStatus) {
         logger.debug("About to send POST request to '{}' with payload '{}'", uri, body);
         KieServerHttpRequest request = newRequest( uri ).headers(headers).body(serialize( body )).post();
         KieServerHttpResponse response = request.response();
 
         owner.setConversationId(response.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER));
 
-        if ( response.code() == Response.Status.OK.getStatusCode() ) {
-            ServiceResponse serviceResponse = deserialize( response.body(), ServiceResponse.class );
+        if (response.code() == expectedStatus.getStatusCode()) {
+ 
+            ServiceResponse<T> serviceResponse = deserialize( response.body(), ServiceResponse.class );
             // serialize it back to string to make it backward compatible
-            serviceResponse.setResult(serialize(serviceResponse.getResult()));
+            serviceResponse.setResult((T) serialize(serviceResponse.getResult()));
             checkResultType(serviceResponse, resultType);
             return serviceResponse;
         } else {
             throw createExceptionForUnexpectedResponseCode( request, response );
         }
+
     }
 
+    @SuppressWarnings("unchecked")
     protected <T> ServiceResponse<T> makeBackwardCompatibleHttpPostRequestAndCreateServiceResponse(String uri, String body, Class<T> resultType) {
         logger.debug("About to send POST request to '{}' with payload '{}'", uri, body);
         KieServerHttpRequest request = newRequest( uri ).body( body ).post();
@@ -789,9 +858,9 @@ public abstract class AbstractKieServicesClientImpl {
         owner.setConversationId(response.header(KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER));
 
         if ( response.code() == Response.Status.OK.getStatusCode() ) {
-            ServiceResponse serviceResponse = deserialize( response.body(), ServiceResponse.class );
+            ServiceResponse<T> serviceResponse = deserialize( response.body(), ServiceResponse.class );
             // serialize it back to string to make it backward compatible
-            serviceResponse.setResult(serialize(serviceResponse.getResult()));
+            serviceResponse.setResult((T) serialize(serviceResponse.getResult()));
             checkResultType(serviceResponse, resultType);
             return serviceResponse;
         } else {
@@ -804,22 +873,28 @@ public abstract class AbstractKieServicesClientImpl {
     }
 
     protected KieServerHttpRequest invoke(String url, RemoteHttpOperation operation) {
-        String nextUrl = null;
+        String currentUrl = url;
+        String nextHost = null;
         do {
             try {
-                return operation.doOperation(url);
+                return operation.doOperation(currentUrl);
             } catch (KieServerHttpRequestException e) {
                 if (e.getCause() instanceof IOException) {
-                    logger.debug("Marking endpoint '{}' as failed due to {}", url, e.getCause().getMessage());
-                    String failedBaseUrl = loadBalancer.markAsFailed(url);
-                    nextUrl = loadBalancer.getUrl();
-                    url = url.replace(failedBaseUrl, nextUrl);
-                    logger.debug("Selecting next endpoint from load balancer - '{}'", url);
+                    String failedBaseUrl = loadBalancer.markAsFailed(currentUrl);
+                    logger.warn("Marking endpoint '{}' as failed due to {}", failedBaseUrl, e.getCause().getMessage());
+                    try {
+                        nextHost = loadBalancer.getUrl();
+                        currentUrl = nextHost + url.substring(failedBaseUrl.length());
+                        logger.debug("Selecting next endpoint from load balancer - '{}'", currentUrl);
+                    } catch (NoEndpointFoundException noEndpointFoundException) {
+                        logger.warn("Cannot invoke request - '{}'", noEndpointFoundException.getMessage());
+                        throw noEndpointFoundException;
+                    }
                 } else {
                     throw e;
                 }
             }
-        } while (nextUrl != null);
+        } while (nextHost != null);
 
         throw new KieServerHttpRequestException("Unable to invoke operation " + operation);
     }

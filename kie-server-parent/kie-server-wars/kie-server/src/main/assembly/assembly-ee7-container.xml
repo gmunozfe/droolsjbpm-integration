@@ -49,6 +49,7 @@
         <include>org.kie.server:kie-server-services-optaplanner</include>
         <include>org.kie.server:kie-server-services-dmn</include>
         <include>org.kie.server:kie-server-services-swagger</include>
+        <include>org.kie.server:kie-server-services-kafka</include>
         <include>org.kie.server:kie-server-services-scenario-simulation</include>
         <include>junit:junit</include>
         <include>org.kie.server:kie-server-jms</include>
@@ -65,7 +66,6 @@
         <include>org.kie.server:kie-server-router-client</include>
         <include>org.kie.server:kie-server-client</include>
         <include>org.kie:jbpm-process-svg</include>
-        <include>org.kie:kie-security</include>
         
         <include>org.kie.server:kie-server-controller-websocket-client</include>
         <include>org.kie.server:kie-server-controller-websocket-common</include>
@@ -93,22 +93,29 @@
         
         <include>xerces:xercesImpl</include>
 
-        <include>com.sun.xml.bind:jaxb-xjc</include>
+        <include>org.glassfish.jaxb:jaxb-runtime</include>
+        <include>org.glassfish.jaxb:jaxb-xjc</include>
+
+        <include>org.yaml:snakeyaml</include>
+
+        <include>org.jboss.resteasy:resteasy-jackson2-provider</include>
       </includes>
       <excludes>
-        <exclude>org.jboss.resteasy:*</exclude>
-        <exclude>org.jboss.spec.javax.annotation:*</exclude>
-        <exclude>org.jboss.spec.javax.ejb:*</exclude>
-        <exclude>org.jboss.spec.javax.interceptor:*</exclude>
-        <exclude>org.jboss.spec.javax.transaction:*</exclude>
-        <exclude>org.jboss.spec.javax.ws.rs:*</exclude>
-        <exclude>javax.enterprise:cdi-api</exclude>
-        <exclude>javax.inject:javax.inject</exclude>
+        <exclude>org.jboss.resteasy:resteasy-jackson-provider</exclude>
+        <exclude>org.jboss.resteasy:resteasy-jaxb-provider</exclude>
+        <exclude>jakarta.annotation:*</exclude>
+        <exclude>jakarta.ejb:*</exclude>
+        <exclude>jakarta.interceptor:*</exclude>
+        <exclude>jakarta.transaction:*</exclude>
+        <exclude>jakarta.ws.rs:*</exclude>
+        <exclude>jakarta.enterprise:jakarta.enterprise.cdi-api</exclude>
+        <exclude>jakarta.inject:jakarta.inject-api</exclude>
         <exclude>javax.validation:validation-api</exclude>
         <exclude>stax:stax-api</exclude>
-        <exclude>javax.activation:activation</exclude>
+        <exclude>jakarta.activation:jakarta.activation-api</exclude>
         <exclude>xml-apis:xml-apis:jar</exclude>
-        <exclude>javax.mail:mail</exclude>
+        <exclude>jakarta.mail:jakarta.mail-api</exclude>
+        <exclude>com.sun.mail:jakarta.mail</exclude>
         <exclude>org.apache.cxf:cxf-rt-ws-policy</exclude>
       </excludes>
       <outputDirectory>WEB-INF/lib</outputDirectory>

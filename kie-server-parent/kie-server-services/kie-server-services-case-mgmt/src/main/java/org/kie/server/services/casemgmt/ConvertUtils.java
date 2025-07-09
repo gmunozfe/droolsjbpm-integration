@@ -46,6 +46,7 @@ import org.kie.server.api.model.admin.MigrationReportInstance;
 import org.kie.server.api.model.admin.MigrationReportInstanceList;
 import org.kie.server.api.model.cases.CaseAdHocFragment;
 import org.kie.server.api.model.cases.CaseComment;
+import org.kie.server.api.model.cases.CaseFile;
 import org.kie.server.api.model.cases.CaseFileDataItem;
 import org.kie.server.api.model.cases.CaseFileDataItemList;
 import org.kie.server.api.model.cases.CaseInstanceCustomVars;
@@ -142,7 +143,12 @@ public class ConvertUtils {
                 .completionMessage(actualCaseInstance.getCompletionMessage())
                 .slaCompliance(actualCaseInstance.getSlaCompliance())
                 .slaDueDate(actualCaseInstance.getSlaDueDate())
+                .caseFile(toCaseFile(actualCaseInstance))
                 .build();
+    }
+
+    private static CaseFile toCaseFile(CaseInstance caseFile) {
+        return caseFile.getCaseFile() != null ? CaseFile.builder().data(caseFile.getCaseFile().getData()).build() : null;
     }
 
     public static List<CaseComment> transformCaseComments(Collection<CommentInstance> caseComments) {
@@ -469,6 +475,7 @@ public class ConvertUtils {
             CaseUserTaskWithVariables var = new CaseUserTaskWithVariables();
             var.setId(desc.getTaskId());
             var.setName(desc.getName());
+            var.setDescription(desc.getDescription());
             var.setProcessInstanceId(desc.getProcessInstanceId());
             var.setCorrelationKey(desc.getCorrelationKey());
             var.setActualOwner(desc.getActualOwner());
@@ -478,6 +485,7 @@ public class ConvertUtils {
             var.setProcessVariables(desc.getProcessVariables());
             var.setInputVariables(desc.getInputdata());
             var.setCaseVariables(desc.getExtraData());
+            var.setStatus(desc.getStatus());
             data.add(var);
         }
 

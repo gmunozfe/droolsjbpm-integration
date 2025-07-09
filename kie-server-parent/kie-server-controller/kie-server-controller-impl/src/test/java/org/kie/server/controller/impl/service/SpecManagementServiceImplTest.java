@@ -57,9 +57,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -115,6 +114,56 @@ public class SpecManagementServiceImplTest extends AbstractServiceImplTest {
 
         assertEquals(serverTemplate.getName(), saved.getName());
         assertEquals(serverTemplate.getId(), saved.getId());
+    }
+    
+    @Test
+    public void notabletoCreateContainerWithEmptyid() {
+
+        ServerTemplate serverTemplate = new ServerTemplate();
+
+        serverTemplate.setName("test server");
+        serverTemplate.setId(UUID.randomUUID().toString());
+
+        specManagementService.saveServerTemplate(serverTemplate);
+
+        ServerTemplateKeyList existing = specManagementService.listServerTemplateKeys();
+        assertNotNull(existing);
+        assertEquals(1, existing.getServerTemplates().length);
+        
+        Map<Capability, ContainerConfig> configs = new HashMap<Capability, ContainerConfig>();
+        RuleConfig ruleConfig = new RuleConfig();
+        ruleConfig.setPollInterval(1000l);
+        ruleConfig.setScannerStatus(KieScannerStatus.STARTED);
+
+        configs.put(Capability.RULE, ruleConfig);
+
+        ProcessConfig processConfig = new ProcessConfig();
+        processConfig.setKBase("defaultKieBase");
+        processConfig.setKSession("defaultKieSession");
+        processConfig.setMergeMode("MERGE_COLLECTION");
+        processConfig.setRuntimeStrategy("PER_PROCESS_INSTANCE");
+
+        configs.put(Capability.PROCESS, processConfig);
+
+        ContainerSpec containerSpec = new ContainerSpec();
+        containerSpec.setId("");
+        containerSpec.setServerTemplateKey(new ServerTemplateKey(serverTemplate.getId(), serverTemplate.getName()));
+        containerSpec.setReleasedId(new ReleaseId("org.kie", "kie-server-kjar", "1.0"));
+        containerSpec.setStatus(KieContainerStatus.STOPPED);
+        containerSpec.setConfigs(configs);
+
+        try {
+            specManagementService.saveContainerSpec(serverTemplate.getId(), containerSpec);
+            fail("Cannot create container with empty container id.");
+        } catch (Exception ex) {
+            assertEquals("Cannot create container with empty container id.",
+                         ex.getMessage());
+        }
+
+
+        org.kie.server.controller.api.model.spec.ServerTemplate createdServerTemplate = specManagementService.getServerTemplate(serverTemplate.getId());
+        assertEquals(0, createdServerTemplate.getContainersSpec().size());
+
     }
 
     @Test
@@ -364,6 +413,7 @@ public class SpecManagementServiceImplTest extends AbstractServiceImplTest {
         assertEquals(containerSpec.getConfigs().size(), container.getConfigs().size());
     }
 
+      
     @Test
     public void testCreateServerTemplateAndUpdateContainerConfig() {
 
@@ -457,11 +507,11 @@ public class SpecManagementServiceImplTest extends AbstractServiceImplTest {
         createServerTemplateWithContainer();
         List<Container> fakeResult = new ArrayList<Container>();
         fakeResult.add(container);
-        when(kieServerInstanceManager.startContainer(any(ServerTemplate.class), any(ContainerSpec.class))).thenReturn(fakeResult);
+        when(kieServerInstanceManager.startContainer(any(ServerTemplate.class), any(ContainerSpec.class), any())).thenReturn(fakeResult);
 
         specManagementService.startContainer(containerSpec);
 
-        verify(kieServerInstanceManager, times(1)).startContainer(any(ServerTemplate.class), any(ContainerSpec.class));
+        verify(kieServerInstanceManager, times(1)).startContainer(any(ServerTemplate.class), any(ContainerSpec.class), any());
 
         ServerTemplate updated = specManagementService.getServerTemplate(serverTemplate.getId());
         assertNotNull(updated);
@@ -477,11 +527,10 @@ public class SpecManagementServiceImplTest extends AbstractServiceImplTest {
         createServerTemplateWithContainer();
         List<Container> fakeResult = new ArrayList<Container>();
         fakeResult.add(container);
-        when(kieServerInstanceManager.stopContainer(any(ServerTemplate.class), any(ContainerSpec.class))).thenReturn(fakeResult);
 
         specManagementService.stopContainer(containerSpec);
 
-        verify(kieServerInstanceManager, times(1)).stopContainer(any(ServerTemplate.class), any(ContainerSpec.class));
+        verify(kieServerInstanceManager, times(1)).stopContainer(any(ServerTemplate.class), any(ContainerSpec.class), any());
 
         ServerTemplate updated = specManagementService.getServerTemplate(serverTemplate.getId());
         assertNotNull(updated);
@@ -569,7 +618,6 @@ public class SpecManagementServiceImplTest extends AbstractServiceImplTest {
         specManagementService.setTemplateStorage(templateStorage);
 
         doReturn(serverTemplate).when(templateStorage).load(serverTemplateId);
-        doReturn(null).when(serverTemplate).getContainersSpec();
 
         expectedException.expect(KieServerControllerIllegalArgumentException.class);
         expectedException.expectMessage("No container spec found for id containerSpecId within server template with id serverTemplateId");
@@ -757,11 +805,42 @@ public class SpecManagementServiceImplTest extends AbstractServiceImplTest {
             assertTrue(serverTemplateUpdated.isResetBeforeUpdate());
         }
 
-        verify(kieServerInstanceManager, started ? times(1) : never()).upgradeAndStartContainer(eq(template), eq(containerSpec), eq(resetBeforeUpdate));
-        verify(notificationService, started ? times(1) : never()).notify(eq(template), eq(containerSpec), anyList());
+        verify(kieServerInstanceManager, started ? times(1) : never()).upgradeAndStartContainer(eq(template), eq(containerSpec), eq(resetBeforeUpdate), any());
+
     }
 
 
+	@Test
+	public void notabletoUpdateContainerWithEmptyid() {
+		final String serverTemplateId = "serverTemplateId";
+		final String serverTemplateName = "serverTemplateName";
+		final String containerSpecId = "containerSpecId";
+
+		ServerTemplate template = new ServerTemplate(serverTemplateId, serverTemplateName);
+
+		ContainerSpec containerSpec = new ContainerSpec();
+		containerSpec.setId("");
+		containerSpec.setServerTemplateKey(new ServerTemplateKey(template.getId(), template.getName()));
+		containerSpec.setReleasedId(new ReleaseId("org.kie", "kie-server-kjar", "1.0"));
+		containerSpec.setStatus(KieContainerStatus.STARTED);
+
+		template.addContainerSpec(containerSpec);
+
+		when(templateStorage.load(eq(serverTemplateId))).thenReturn(template);
+
+		final SpecManagementServiceImpl specManagementService = (SpecManagementServiceImpl) this.specManagementService;
+
+		specManagementService.setTemplateStorage(templateStorage);
+		specManagementService.setNotificationService(notificationService);
+
+		try {
+			specManagementService.updateContainerSpec(serverTemplateId, containerSpecId, containerSpec, true);
+			fail("Cannot update container with empty container id");
+		} catch (Exception ex) {
+			assertEquals("Cannot update container with empty container id.", ex.getMessage());
+		}
+
+	}   
 
     @Test
     public void testUpdateContainerRuleConfigWhenKieScannerStatusIsStarted() {

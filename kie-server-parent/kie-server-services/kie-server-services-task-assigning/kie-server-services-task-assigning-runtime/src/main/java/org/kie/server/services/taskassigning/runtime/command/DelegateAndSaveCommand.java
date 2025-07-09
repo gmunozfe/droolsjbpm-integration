@@ -17,19 +17,15 @@
 package org.kie.server.services.taskassigning.runtime.command;
 
 import java.util.Arrays;
-import java.util.Date;
 
 import org.jbpm.services.task.commands.DelegateTaskCommand;
-import org.jbpm.services.task.commands.TaskContext;
 import org.kie.api.runtime.Context;
 import org.kie.api.task.model.OrganizationalEntity;
 import org.kie.api.task.model.Status;
 import org.kie.api.task.model.Task;
 import org.kie.api.task.model.User;
-import org.kie.internal.task.api.TaskPersistenceContext;
 import org.kie.server.api.model.taskassigning.PlanningExecutionResult;
 import org.kie.server.api.model.taskassigning.PlanningItem;
-import org.kie.server.services.taskassigning.runtime.persistence.PlanningTaskImpl;
 
 import static org.kie.api.task.model.Status.Ready;
 import static org.kie.api.task.model.Status.Reserved;
@@ -42,6 +38,9 @@ public class DelegateAndSaveCommand extends PlanningCommand {
     static final String TASK_MODIFIED_ERROR_MSG = "Task: %s was modified by an external action since the last executed plan," +
             " current status is %s but the expected should be in %s";
 
+    static final String TASK_MODIFIED_ERROR_MSG_1 = "Task: %s was not found, it might have been deleted by an external action since the last executed plan." +
+            " Most likely as part of the tasks cleanup procedure at the process completion.";
+
     public DelegateAndSaveCommand(PlanningItem planningItem, String userId) {
         super(planningItem);
         this.userId = userId;
@@ -49,8 +48,14 @@ public class DelegateAndSaveCommand extends PlanningCommand {
 
     @Override
     public Void execute(Context context) {
-        final TaskContext taskContext = (TaskContext) context;
+        super.execute(context);
         final Task task = taskContext.getPersistenceContext().findTask(planningItem.getTaskId());
+        if (task == null) {
+            throw new PlanningException(String.format(TASK_MODIFIED_ERROR_MSG_1,
+                                                      planningItem.getTaskId()),
+                                        planningItem.getContainerId(),
+                                        PlanningExecutionResult.ErrorCode.TASK_MODIFIED_SINCE_PLAN_CALCULATION_ERROR);
+        }
         final org.kie.api.task.model.TaskData taskData = task.getTaskData();
         final Status status = taskData.getStatus();
         if (!(Ready == status || Reserved == status)) {
@@ -80,12 +85,7 @@ public class DelegateAndSaveCommand extends PlanningCommand {
             }
         }
 
-        TaskPersistenceContext persistenceContext = taskContext.getPersistenceContext();
-        persistenceContext.merge(new PlanningTaskImpl(planningItem.getTaskId(),
-                                                      planningItem.getPlanningTask().getAssignedUser(),
-                                                      planningItem.getPlanningTask().getIndex(),
-                                                      planningItem.getPlanningTask().isPublished(),
-                                                      new Date()));
+        saveOrUpdatePlanningTask(planningItem);
         return null;
     }
 

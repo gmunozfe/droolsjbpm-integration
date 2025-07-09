@@ -22,7 +22,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.drools.core.command.runtime.rule.GetFactHandlesCommand;
+import javax.ws.rs.core.Response.Status;
+
+import org.drools.core.base.RuleNameEndsWithAgendaFilter;
+import org.drools.core.command.runtime.rule.FireAllRulesCommand;
+import org.drools.core.command.runtime.rule.UpdateCommand;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -36,10 +40,12 @@ import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.QueryResultsRow;
 import org.kie.server.api.model.ReleaseId;
 import org.kie.server.api.model.ServiceResponse;
-
-import static org.junit.Assert.*;
 import org.kie.server.integrationtests.shared.KieServerDeployer;
 import org.kie.server.integrationtests.shared.KieServerReflections;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class StatefulSessionUsageIntegrationTest extends DroolsKieServerBaseIntegrationTest {
 
@@ -57,7 +63,9 @@ public class StatefulSessionUsageIntegrationTest extends DroolsKieServerBaseInte
     private static final String PERSON_EXPECTED_SURNAME = "Vader";
     private static final String PERSON_EXPECTED_SURNAME_AFTER_UPDATE = "Lord Vader";
     private static final String GET_OBJECTS_IDENTIFIER = "get-objects";
+    private static final String GET_OBJECT_IDENTIFIER = "get-object";
     private static final String GET_FACTS_IDENTIFIER = "facts";
+    private static final String FIRED_IDENTIFIER = "fired";
 
     private static ClassLoader kjarClassLoader;
 
@@ -89,13 +97,14 @@ public class StatefulSessionUsageIntegrationTest extends DroolsKieServerBaseInte
         commands.add(commandsFactory.newInsert(person, PERSON_1_OUT_IDENTIFIER));
         commands.add(commandsFactory.newFireAllRules());
 
-        ServiceResponse<ExecutionResults> reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        ServiceResponse<ExecutionResults> reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand,
+                Status.OK);
         assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
         // now dispose the container
         ServiceResponse<Void> disposeReply = client.disposeContainer(CONTAINER_ID);
         assertEquals("Dispose reply response type.", ServiceResponse.ResponseType.SUCCESS, disposeReply.getType());
         // and try to call the container again. The call should fail as the container no longer exists
-        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand, Status.INTERNAL_SERVER_ERROR);
         assertEquals(ServiceResponse.ResponseType.FAILURE, reply.getType());
         assertTrue("Expected message about non-instantiated container. Got: " + reply.getMsg(),
                 reply.getMsg().contains(String.format("Container '%s' is not instantiated", CONTAINER_ID)));
@@ -143,7 +152,6 @@ public class StatefulSessionUsageIntegrationTest extends DroolsKieServerBaseInte
         result = actualData.getValue(PERSON_2_OUT_IDENTIFIER);
         // and 'duplicated' flag should be true, because second person was added
         assertEquals("The 'duplicated' field should be true!", true, KieServerReflections.valueOf(result, PERSON_DUPLICATED_FIELD));
-
     }
 
     @Test
@@ -326,5 +334,115 @@ public class StatefulSessionUsageIntegrationTest extends DroolsKieServerBaseInte
 
         factHandles = (Collection<FactHandle>) facts;
         assertEquals(0, factHandles.size());
+    }
+
+    @Test
+    public void testStatefulDefault() {
+        List<Command<?>> commands = new ArrayList<Command<?>>();
+        BatchExecutionCommand executionCommand = commandsFactory.newBatchExecution(commands); // Don't provide lookup
+
+        Object person = createInstance(PERSON_CLASS_NAME, PERSON_NAME, "");
+        commands.add(commandsFactory.newInsert(person, PERSON_1_OUT_IDENTIFIER));
+        commands.add(commandsFactory.newFireAllRules());
+
+        ServiceResponse<ExecutionResults> reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+        // first call should set the surname for the inserted person
+
+        ExecutionResults actualData = reply.getResult();
+
+        Object result = actualData.getValue(PERSON_1_OUT_IDENTIFIER);
+
+        assertEquals("Expected surname to be set to 'Vader'", PERSON_EXPECTED_SURNAME, KieServerReflections.valueOf(result, PERSON_SURNAME_FIELD));
+        // and 'duplicated' flag should stay false, as only one person is in working memory
+        assertEquals("The 'duplicated' field should be false!", false, KieServerReflections.valueOf(result, PERSON_DUPLICATED_FIELD));
+
+        commands = new ArrayList<Command<?>>();
+        executionCommand = commandsFactory.newBatchExecution(commands); // Don't provide lookup
+        commands.add(commandsFactory.newDispose());
+        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+    }
+
+    @Test
+    public void testAgendaFilter() {
+        // insert and fire
+        List<Command<?>> commands = new ArrayList<Command<?>>();
+        BatchExecutionCommand executionCommand = commandsFactory.newBatchExecution(commands, KIE_SESSION);
+
+        Object person = createInstance(PERSON_CLASS_NAME, PERSON_NAME, "");
+        commands.add(commandsFactory.newInsert(person, PERSON_1_OUT_IDENTIFIER));
+        commands.add(new FireAllRulesCommand(FIRED_IDENTIFIER, -1, new RuleNameEndsWithAgendaFilter("Darth", false))); // Don't fire "Set lastname for Darth" rule
+
+        ServiceResponse<ExecutionResults> reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+
+        ExecutionResults actualData = reply.getResult();
+
+        Object fired = actualData.getValue(FIRED_IDENTIFIER);
+        assertEquals("Rule should not be fired because of AgendaFilter", 0, fired);
+
+        Object result = actualData.getValue(PERSON_1_OUT_IDENTIFIER);
+        assertEquals("Surname to remain empty", "", KieServerReflections.valueOf(result, PERSON_SURNAME_FIELD));
+    }
+
+    @Test
+    public void testUpdate() {
+        // insert and fire
+        List<Command<?>> commands = new ArrayList<Command<?>>();
+        BatchExecutionCommand executionCommand = commandsFactory.newBatchExecution(commands, KIE_SESSION);
+
+        Object person = createInstance(PERSON_CLASS_NAME, PERSON_NAME, "");
+        commands.add(commandsFactory.newInsert(person, PERSON_1_OUT_IDENTIFIER));
+        commands.add(commandsFactory.newFireAllRules());
+
+        ServiceResponse<ExecutionResults> reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+
+        FactHandle factHandle = (FactHandle) reply.getResult().getFactHandle(PERSON_1_OUT_IDENTIFIER);
+
+        // update object by fact handle
+        commands = new ArrayList<Command<?>>();
+        executionCommand = commandsFactory.newBatchExecution(commands, KIE_SESSION);
+
+        Object newPerson = createInstance(PERSON_CLASS_NAME, PERSON_NAME, "Lord Vader");
+        commands.add(new UpdateCommand(factHandle, newPerson, new String[]{PERSON_SURNAME_FIELD}));
+
+        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+
+        // get object
+        commands = new ArrayList<Command<?>>();
+        executionCommand = commandsFactory.newBatchExecution(commands, KIE_SESSION);
+        commands.add(commandsFactory.newGetObject(factHandle, GET_OBJECT_IDENTIFIER));
+
+        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, executionCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+
+        Object returnedPerson = reply.getResult().getValue(GET_OBJECT_IDENTIFIER);
+
+        assertEquals("Expected surname to be set to 'Lord Vader'",
+                     PERSON_EXPECTED_SURNAME_AFTER_UPDATE, KieServerReflections.valueOf(returnedPerson, PERSON_SURNAME_FIELD));
+    }
+
+    @Test
+    public void testInsertDisposeDelete() {
+        // DROOLS-7056
+        // Insert
+        Object person = createInstance(PERSON_CLASS_NAME, PERSON_NAME, "");
+        Command<?> insertCommand = commandsFactory.newInsert(person, PERSON_1_OUT_IDENTIFIER);
+        ServiceResponse<ExecutionResults> reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, insertCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+        FactHandle factHandle = (FactHandle) reply.getResult().getFactHandle(PERSON_1_OUT_IDENTIFIER);
+
+        // Dispose
+        Command<?> disposeCommand = commandsFactory.newDispose();
+        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, disposeCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType());
+
+        // Delete : It means creating a new ksession and deleting a non-existing factHandle
+        Command<?> deleteCommand = commandsFactory.newDelete(factHandle);
+        reply = ruleClient.executeCommandsWithResults(CONTAINER_ID, deleteCommand);
+        assertEquals(ServiceResponse.ResponseType.SUCCESS, reply.getType()); // No error
     }
 }

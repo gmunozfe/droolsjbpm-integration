@@ -17,6 +17,7 @@
 package org.kie.server.springboot.samples.rest;
 
 import static org.junit.Assert.assertEquals;
+import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,30 +27,31 @@ import org.kie.server.springboot.samples.KieServerApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = {KieServerApplication.class}, webEnvironment = WebEnvironment.RANDOM_PORT)
 @TestPropertySource(locations="classpath:application-jaxrstest.properties")
+@DirtiesContext(classMode= AFTER_CLASS)
 public class KieServerWithExtraEndpointTest {
 
     @LocalServerPort
     private int port;    
    
-    private String user = "john";
-    private String password = "john@pwd1";
+    private static final String JOHN = "john";
+    private static final String PASSWORD = "usetheforce123@";
 
-    
     @Test
     public void testExtraEndpoint() {
         
         String extraEndpoint = "http://localhost:" + port + "/rest/extra";
         
         KieServerHttpRequest httpRequest =
-                KieServerHttpRequest.newRequest(extraEndpoint, user, password)
+                KieServerHttpRequest.newRequest(extraEndpoint, JOHN, PASSWORD)
                 .followRedirects(true)
-                .timeout(1000)
+                .timeout(5000)
                 .contentType("application/json")
                 .accept("application/json");
         httpRequest.get();

@@ -49,7 +49,9 @@ public class TestConfig {
     protected String perfRepoUrlPath;
     protected String perfRepoUsername;
     protected String perfRepoPassword;
-    
+
+    protected String testUIDSuffix;
+
     protected String version = Executor.class.getPackage().getImplementationVersion();
 
     protected List<Measure> measure;
@@ -86,7 +88,10 @@ public class TestConfig {
         }
         properties.put("startScriptLocation", startScriptLocation);
 
-        testPackage = System.getProperty("org.kie.perf.suite.test-package", DEFAULT_TEST_PACKAGE);
+        testPackage = System.getProperty("org.kie.perf.suite.test-package");
+        if (testPackage == null || testPackage.isEmpty()) {
+            testPackage = DEFAULT_TEST_PACKAGE;
+        }
         properties.put("org.kie.perf.suite.test-package", testPackage);
 
         runType = RunType.valueOf(System.getProperty("runType").toUpperCase());
@@ -154,6 +159,10 @@ public class TestConfig {
         perfRepoPassword = System.getProperty("perfRepo.password");
         if (perfRepoPassword != null) {
             properties.put("perfRepo.password", perfRepoPassword);
+        }
+        testUIDSuffix = System.getProperty("testUIDSuffix");
+        if (testUIDSuffix != null) {
+            properties.put("testUIDSuffix", testUIDSuffix);
         }
 
         return properties;
@@ -277,6 +286,10 @@ public class TestConfig {
         return perfRepoPassword;
     }
 
+    public String getTestUIDSuffix() {
+        return testUIDSuffix;
+    }
+
     public static enum ReporterType {
         CONSOLE, CSV, CSVSINGLE, PERFREPO
     }
@@ -304,5 +317,4 @@ public class TestConfig {
             return instance;
         }
     }
-
 }

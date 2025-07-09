@@ -48,6 +48,7 @@
     <class>org.jbpm.services.task.impl.model.TaskDefImpl</class>
     <class>org.jbpm.services.task.impl.model.TaskDataImpl</class>
     <class>org.jbpm.services.task.impl.model.UserImpl</class>
+    <class>org.jbpm.services.task.impl.model.EmailImpl</class>
     <!-- Event Classes -->
     <class>org.jbpm.services.task.audit.impl.model.TaskEventImpl</class>
 
@@ -66,6 +67,7 @@
     <class>org.jbpm.persistence.correlation.CorrelationPropertyInfo</class>
     <!-- manager -->
     <class>org.jbpm.runtime.manager.impl.jpa.ContextMappingInfo</class>
+    <class>org.jbpm.runtime.manager.impl.jpa.TimerMappingInfo</class>
 
     <!-- bam -->
     <class>org.jbpm.process.audit.ProcessInstanceLog</class>

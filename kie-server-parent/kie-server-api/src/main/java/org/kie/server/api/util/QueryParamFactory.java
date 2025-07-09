@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 
 import org.kie.server.api.model.definition.QueryParam;
 
+import static java.util.Collections.emptyList;
+
 public final class QueryParamFactory {
 
     private QueryParamFactory() {}
@@ -79,6 +81,10 @@ public final class QueryParamFactory {
         return new QueryParam(column, "NOT_IN", values);
     }
 
+    public static QueryParam notIn(String column, Object... values) {
+        return new QueryParam(column, "NOT_IN", Arrays.asList(values));
+    }
+
     public static QueryParam and(QueryParam... params) {
         return new QueryParam(null, "AND", Arrays.stream(params).collect(Collectors.toList()));
     }
@@ -89,6 +95,29 @@ public final class QueryParamFactory {
 
     public static QueryParam not(QueryParam param) {
         return new QueryParam(null, "NOT", Collections.singletonList(param));
+    }
+
+    /** 
+     * only for search process / task by variables
+     */
+    public static QueryParam type(String column, Comparable<?> type) {
+        return new QueryParam(column, "TYPE", Arrays.asList(type));
+    }
+
+    public static QueryParam history() {
+        return new QueryParam("TABLE", "MODE", Arrays.asList("HISTORY"));
+    }
+
+    public static QueryParam exclude(String collection) {
+        return new QueryParam(collection, "EXCLUDE", emptyList());
+    }
+
+    public static QueryParam onlyActiveTasks() {
+        return in("TASK_STATUS", "Created", "Ready", "Reserved", "InProgress", "Suspended");
+    }
+
+    public static QueryParam onlyCompletedTasks() {
+        return notIn("TASK_STATUS", "Created", "Ready", "Reserved", "InProgress", "Suspended");
     }
 
     public static List<QueryParam> list(QueryParam... params) {

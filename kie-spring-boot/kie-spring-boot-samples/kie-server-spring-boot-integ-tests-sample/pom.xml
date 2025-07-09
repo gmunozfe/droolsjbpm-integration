@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.kie</groupId>
     <artifactId>kie-spring-boot-samples</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
   <artifactId>kie-server-spring-boot-integ-tests-sample</artifactId>
 
@@ -13,6 +13,7 @@
 
   <properties>
     <start-class>org.kie.server.springboot.samples.KieServerIntegrationTestsApplication</start-class>
+    <sonar.exclusions>**/IntegrationTestsWebSecurityConfig.java</sonar.exclusions>
   </properties>
 
   <dependencies>
@@ -32,12 +33,6 @@
     <dependency>
       <groupId>org.apache.cxf</groupId>
       <artifactId>cxf-rt-rs-service-description-swagger</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.cxf</groupId>
-          <artifactId>cxf-rt-rs-service-description-swagger-ui</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.swagger</groupId>
@@ -54,12 +49,16 @@
       <artifactId>kie-server-client</artifactId>
       <exclusions>
         <exclusion>
-          <groupId>org.jboss.spec.javax.ws.rs</groupId>
-          <artifactId>jboss-jaxrs-api_2.1_spec</artifactId>
+          <groupId>jakarta.servlet</groupId>
+          <artifactId>jakarta.servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>javax.activation</groupId>
-          <artifactId>activation</artifactId>
+          <groupId>jakarta.ws.rs</groupId>
+          <artifactId>jakarta.ws.rs-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>jakarta.activation</groupId>
+          <artifactId>jakarta.activation-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.slf4j</groupId>

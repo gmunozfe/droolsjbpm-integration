@@ -15,10 +15,11 @@
 
 package org.kie.server.integrationtests.controller;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.concurrent.TimeoutException;
 
 import org.junit.After;
 import org.junit.Before;
@@ -35,11 +36,9 @@ import org.kie.server.api.model.ServiceResponse;
 import org.kie.server.client.KieServicesClient;
 import org.kie.server.client.KieServicesConfiguration;
 import org.kie.server.client.KieServicesFactory;
-import org.kie.server.controller.api.ModelFactory;
 import org.kie.server.controller.api.model.spec.Capability;
 import org.kie.server.controller.api.model.spec.ContainerConfig;
 import org.kie.server.controller.api.model.spec.ContainerSpec;
-import org.kie.server.controller.api.model.spec.ContainerSpecList;
 import org.kie.server.controller.api.model.spec.ServerTemplate;
 import org.kie.server.controller.api.model.spec.ServerTemplateList;
 import org.kie.server.integrationtests.config.TestConfig;
@@ -58,6 +57,8 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
     public static final Logger logger = LoggerFactory.getLogger(WebSocketKieControllerStartupIntegrationTest.class);
 
     private String origControllerUrl;
+    // Need to allocate different port for WebSocket test as using same Kie server URL for both REST and WebSocket tests cause issues (due to client retrieval logic in controller).
+    private int kieServerAllocatedPort = allocatePort();
 
     @Rule
     public TestName testName= new TestName();
@@ -65,7 +66,7 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
     @Override
     protected KieServicesClient createDefaultClient() {
         // For these tests we use embedded kie server as we need to control turning server off and on.
-        KieServicesConfiguration config = KieServicesFactory.newRestConfiguration(TestConfig.getEmbeddedKieServerHttpUrl(), null, null);
+        KieServicesConfiguration config = KieServicesFactory.newRestConfiguration("http://localhost:" + kieServerAllocatedPort + "/server", null, null);
         config.setMarshallingFormat(marshallingFormat);
         return KieServicesFactory.newKieServicesClient(config);
     }
@@ -83,7 +84,7 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
         
         // Start embedded kie server to be correctly initialized and cleaned before tests.
         if (!TestConfig.isLocalServer()) {
-            server = new KieServerExecutor() {
+            server = new KieServerExecutor(kieServerAllocatedPort) {
                 
                 @Override
                 protected void setKieServerProperties(boolean syncWithController) {
@@ -125,7 +126,7 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
         }
     }
 
-    @Test
+    @Test(timeout = 60 * 1000)
     public void testRegisterKieServerAfterStartup() throws Exception {
         // Turn off embedded kie server.
         server.stopKieServer();
@@ -155,7 +156,7 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
         assertEquals(reply.getResult().getServerId(), deployedServerInstance.getId());
     }
 
-    @Test
+    @Test(timeout = 60 * 1000)
     public void testTurnOffKieServerAfterShutdown() throws Exception {
         // Register kie server in controller.
         ServiceResponse<KieServerInfo> kieServerInfo = client.getServerInfo();
@@ -180,7 +181,7 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
         assertEquals(kieServerInfo.getResult().getServerId(), instanceList.getServerTemplates()[0].getId()); //maybe change to avoid next -> null
     }
 
-    @Test
+    @Test(timeout = 60 * 1000)
     public void testContainerCreatedAfterStartup() throws Exception {
         // Getting info from currently started kie server.
         ServiceResponse<KieServerInfo> kieServerInfo = client.getServerInfo();
@@ -223,59 +224,15 @@ public class WebSocketKieControllerStartupIntegrationTest extends KieControllerM
         assertEquals(KieContainerStatus.STARTED, containerInfo.getResult().getStatus());
     }
 
-    @Test
-    public void testContainerDisposedAfterStartup() throws Exception {
-        // Getting info from currently started kie server.
-        ServiceResponse<KieServerInfo> kieServerInfo = client.getServerInfo();
-        assertEquals(ServiceResponse.ResponseType.SUCCESS, kieServerInfo.getType());
-        assertNotNull(kieServerInfo.getResult());
-
-        // Create container.
-        ServerTemplate serverTemplate = new ServerTemplate(kieServerInfo.getResult().getServerId(), kieServerInfo.getResult().getName());
-        serverTemplate.addServerInstance(ModelFactory.newServerInstanceKey(serverTemplate.getId(), kieServerInfo.getResult().getLocation()));
-        controllerClient.saveServerTemplate(serverTemplate);
-        ContainerSpec containerSpec = new ContainerSpec(CONTAINER_ID, CONTAINER_ID, serverTemplate, RELEASE_ID, KieContainerStatus.STOPPED, new HashMap<Capability, ContainerConfig>());
-        controllerClient.saveContainerSpec(kieServerInfo.getResult().getServerId(), containerSpec);
-        controllerClient.startContainer(containerSpec);
-
-        // Check that there is one container deployed.
+    private static int allocatePort() {
         try {
-            KieServerSynchronization.waitForKieServerSynchronization(client, 1);
-        } catch (TimeoutException e) {
-            // Sometimes creating container fails in embedded server (unknown Socket timeout error, tends to happen here).
-            // Retrigger container creation. These tests should be refactored to use more reliable container instead of embedded TJWSEmbeddedJaxrsServer.
-            controllerClient.startContainer(containerSpec);
-            KieServerSynchronization.waitForKieServerSynchronization(client, 1);
+            ServerSocket server = new ServerSocket(0);
+            int port = server.getLocalPort();
+            server.close();
+            return port;
+        } catch (IOException e) {
+            // failed to dynamically allocate port, try to use hard coded one
+            return 9786;
         }
-        ServiceResponse<KieContainerResourceList> containersList = client.listContainers();
-        assertEquals(ServiceResponse.ResponseType.SUCCESS, containersList.getType());
-        assertNotNull(containersList.getResult().getContainers());
-        assertEquals(1, containersList.getResult().getContainers().size());
-
-        ServerTemplateList instanceList = controllerClient.listServerTemplates();
-        assertEquals(1, instanceList.getServerTemplates().length);
-
-        ServerTemplate returnedServerTemplate = controllerClient.getServerTemplate(kieServerInfo.getResult().getServerId());
-        logger.info("+++++++++++++++++++++++" + returnedServerTemplate.getServerInstanceKeys());
-
-        // Turn kie server off, dispose container and start kie server again.
-        server.stopKieServer();
-        KieServerSynchronization.waitForServerInstanceSynchronization(controllerClient, kieServerInfo.getResult().getServerId(), 0);
-
-        returnedServerTemplate = controllerClient.getServerTemplate(kieServerInfo.getResult().getServerId());
-        logger.info("------------------------" + returnedServerTemplate.getServerInstanceKeys());
-
-        controllerClient.stopContainer(containerSpec);
-        controllerClient.deleteContainerSpec(serverTemplate.getId(), CONTAINER_ID);
-        
-        ContainerSpecList containerList = controllerClient.listContainerSpec(serverTemplate.getId());
-        KieServerAssert.assertNullOrEmpty("Active containers spec found!", containerList.getContainerSpecs());
-
-        server.startKieServer(true);
-
-        // Check that no container is deployed on kie server.
-        containersList = client.listContainers();
-        assertEquals(ServiceResponse.ResponseType.SUCCESS, containersList.getType());
-        KieServerAssert.assertNullOrEmpty("Active containers found!", containersList.getResult().getContainers());
     }
 }

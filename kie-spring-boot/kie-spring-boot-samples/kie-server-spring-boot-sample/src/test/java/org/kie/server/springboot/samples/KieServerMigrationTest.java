@@ -16,11 +16,6 @@
 
 package org.kie.server.springboot.samples;
 
-import static org.appformer.maven.integration.MavenRepository.getMavenRepository;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +34,7 @@ import org.kie.server.api.model.KieContainerResource;
 import org.kie.server.api.model.KieServerConfigItem;
 import org.kie.server.api.model.KieServerMode;
 import org.kie.server.api.model.ReleaseId;
+import org.kie.server.api.model.ServiceResponse;
 import org.kie.server.api.model.admin.MigrationReportInstance;
 import org.kie.server.api.model.instance.ProcessInstance;
 import org.kie.server.client.KieServicesClient;
@@ -47,16 +43,29 @@ import org.kie.server.client.KieServicesFactory;
 import org.kie.server.client.ProcessServicesClient;
 import org.kie.server.client.QueryServicesClient;
 import org.kie.server.client.admin.ProcessAdminServicesClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import static org.appformer.maven.integration.MavenRepository.getMavenRepository;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = {KieServerApplication.class}, webEnvironment = WebEnvironment.RANDOM_PORT)
 @TestPropertySource(locations="classpath:application-test.properties")
+@DirtiesContext(classMode= AFTER_CLASS)
 public class KieServerMigrationTest {
+    
+    private static final Logger logger = LoggerFactory.getLogger(KieServerMigrationTest.class);
 
     static final String ARTIFACT_ID = "evaluation";
     static final String GROUP_ID = "org.jbpm.test";
@@ -65,8 +74,8 @@ public class KieServerMigrationTest {
     @LocalServerPort
     private int port;    
    
-    private String user = "john";
-    private String password = "john@pwd1";
+    private static final String JOHN = "john";
+    private static final String PASSWORD = "usetheforce123@";
 
     private String containerAlias = "eval";
     private String containerId = "evaluation";
@@ -95,7 +104,7 @@ public class KieServerMigrationTest {
     public void setup() {
         ReleaseId releaseId = new ReleaseId(GROUP_ID, ARTIFACT_ID, VERSION);
         String serverUrl = "http://localhost:" + port + "/rest/server";
-        KieServicesConfiguration configuration = KieServicesFactory.newRestConfiguration(serverUrl, user, password);
+        KieServicesConfiguration configuration = KieServicesFactory.newRestConfiguration(serverUrl, JOHN, PASSWORD);
         configuration.setTimeout(60000);
         configuration.setMarshallingFormat(MarshallingFormat.JSON);
         this.kieServicesClient =  KieServicesFactory.newKieServicesClient(configuration);
@@ -117,8 +126,12 @@ public class KieServerMigrationTest {
     
     @After
     public void cleanup() {
-        kieServicesClient.disposeContainer(containerId);
-        kieServicesClient.disposeContainer(containerId2); 
+        if (kieServicesClient != null) {
+            ServiceResponse<Void> response = kieServicesClient.disposeContainer(containerId);
+            logger.info("Container {} disposed with response - {}", containerId, response.getMsg());
+            response = kieServicesClient.disposeContainer(containerId2);
+            logger.info("Container {} disposed with response - {}", containerId2, response.getMsg());
+        }
     }
     
     @Test
@@ -142,22 +155,28 @@ public class KieServerMigrationTest {
         assertEquals(containerId, processInstance.getContainerId());
         
         try {
-            
             MigrationReportInstance report = processAdminClient.migrateProcessInstance(containerId, processInstanceId, containerId2, processId);
             assertTrue(report.isSuccessful());
-            
             processInstance = queryClient.findProcessInstanceById(processInstanceId);
             assertNotNull(processInstance);
             assertEquals(1, processInstance.getState().intValue());
             assertEquals(containerId2, processInstance.getContainerId());
-        } finally {
-            // at the end abort process instance
-            processClient.abortProcessInstance(containerId2, processInstanceId);
-    
-            processInstance = queryClient.findProcessInstanceById(processInstanceId);
-            assertNotNull(processInstance);
-            assertEquals(3, processInstance.getState().intValue());
         }
+        catch (Exception ex ) {
+            // clean up if failure
+            try {
+                processClient.abortProcessInstance(containerId, processInstanceId);
+            } catch (Exception abortEx) {
+                logger.warn("Error aborting process instance over container "+containerId, abortEx);
+            }
+            fail("Migration failed: " + ex);
+            throw ex;
+        }
+        //abort process instance (outside try/catch), to not hide exception that will certainly occur if  migration fails 
+        processClient.abortProcessInstance(containerId2, processInstanceId);
+        processInstance = queryClient.findProcessInstanceById(processInstanceId);
+        assertNotNull(processInstance);
+        assertEquals(3, processInstance.getState().intValue());
     }
 
    

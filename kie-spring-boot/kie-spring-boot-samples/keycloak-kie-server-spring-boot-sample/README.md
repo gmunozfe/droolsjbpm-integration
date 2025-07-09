@@ -7,6 +7,8 @@ This sample requires KeyCloak to be installed and configured with following defa
 - keycloak.auth-server-url=http://localhost:8100/auth
 - keycloak.realm=master
 - keycloak.resource=springboot-app
+- keycloak-identity.admin.user=admin
+- keycloak-identity.admin.pwd=admin
 
 all keycloak configuration is present in src/main/resources/application.properties file.
 
@@ -31,6 +33,6 @@ You can run the application by simply starting
 mvn clean spring-boot:run
 
 ```
-There is also a test case that is ignored by default but can be enabled to validate setup
+There is also a test case using keycloak (testcontainers) to validate setup
 
 

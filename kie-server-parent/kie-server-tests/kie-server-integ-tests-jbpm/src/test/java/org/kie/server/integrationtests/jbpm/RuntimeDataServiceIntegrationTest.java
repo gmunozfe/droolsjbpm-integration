@@ -15,6 +15,23 @@
 
 package org.kie.server.integrationtests.jbpm;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.jbpm.services.api.AdvanceRuntimeDataService.PROCESS_ATTR_DEFINITION_ID;
+import static org.jbpm.services.api.AdvanceRuntimeDataService.PROCESS_ATTR_DEPLOYMENT_ID;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
+import static org.kie.server.api.util.QueryParamFactory.equalsTo;
+import static org.kie.server.api.util.QueryParamFactory.history;
+import static org.kie.server.api.util.QueryParamFactory.list;
+import static org.kie.server.api.util.QueryParamFactory.onlyActiveTasks;
+import static org.kie.server.api.util.QueryParamFactory.onlyCompletedTasks;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -24,7 +41,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.assertj.core.api.Assertions;
-import org.jbpm.services.api.TaskNotFoundException;
+import org.jbpm.workflow.core.WorkflowProcess;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,21 +71,6 @@ import org.kie.server.integrationtests.category.Smoke;
 import org.kie.server.integrationtests.config.TestConfig;
 import org.kie.server.integrationtests.shared.KieServerAssert;
 import org.kie.server.integrationtests.shared.KieServerDeployer;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.jbpm.services.api.AdvanceRuntimeDataService.PROCESS_ATTR_DEFINITION_ID;
-import static org.jbpm.services.api.AdvanceRuntimeDataService.PROCESS_ATTR_DEPLOYMENT_ID;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeFalse;
-import static org.kie.server.api.util.QueryParamFactory.equalsTo;
-import static org.kie.server.api.util.QueryParamFactory.in;
-import static org.kie.server.api.util.QueryParamFactory.list;
 
 
 
@@ -103,7 +105,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         List<ProcessDefinition> definitions = queryClient.findProcesses(0, 20);
         assertNotNull(definitions);
 
-        assertEquals(17, definitions.size());
+        assertEquals(20, definitions.size());
         List<String> processIds = collectDefinitions(definitions);
         checkProcessDefinitions(processIds);
 
@@ -125,7 +127,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         List<ProcessDefinition> definitions = queryClient.findProcesses(0, 20, QueryServicesClient.SORT_BY_NAME, false);
         assertNotNull(definitions);
 
-        assertEquals(17, definitions.size());
+        assertEquals(20, definitions.size());
         List<String> processIds = collectDefinitions(definitions);
         checkProcessDefinitions(processIds);
 
@@ -194,7 +196,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         List<ProcessDefinition> definitions = queryClient.findProcessesByContainerId(CONTAINER_ID, 0, 20);
         assertNotNull(definitions);
 
-        Assertions.assertThat(definitions).hasSize(17);
+        Assertions.assertThat(definitions).hasSize(20);
         List<String> processIds = collectDefinitions(definitions);
         checkProcessDefinitions(processIds);
 
@@ -220,7 +222,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         List<ProcessDefinition> definitions = queryClient.findProcessesByContainerId(CONTAINER_ID, 0, 20, QueryServicesClient.SORT_BY_NAME, true);
         assertNotNull(definitions);
 
-        Assertions.assertThat(definitions).hasSize(17);
+        Assertions.assertThat(definitions).hasSize(20);
         List<String> processIds = collectDefinitions(definitions);
         checkProcessDefinitions(processIds);
 
@@ -409,7 +411,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
                 assertTrue(processInstanceIds.contains(instance.getId()));
                 assertEquals(PROCESS_ID_USERTASK, instance.getProcessId());
             }
-
+            
             instances = queryClient.findProcessInstancesByContainerId(CONTAINER_ID, null, 0, 10, SORT_BY_PROCESS_ID, false);
             assertNotNull(instances);
             assertEquals(5, instances.size());
@@ -420,6 +422,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
                     assertEquals(PROCESS_ID_SIGNAL_PROCESS, instances.get(i).getProcessId());
                 }
             }
+            assertEquals(Long.valueOf(5), queryClient.countProcessInstancesByContainerId(CONTAINER_ID, null));
         } finally {
             abortProcessInstances(processInstanceIds);
         }
@@ -1334,6 +1337,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         parameters.put("personData", createPersonInstance(USER_JOHN));
 
         Long processInstanceId = processClient.startProcess(CONTAINER_ID, PROCESS_ID_USERTASK, parameters);
+        ProcessInstance desc = processClient.getProcessInstance(CONTAINER_ID, processInstanceId);
 
         try {
 
@@ -1357,7 +1361,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
             assertEquals(1, workItems.size());
             Long workItemId = workItems.get(0).getId();
 
-            TaskInstance expectedTaskInstace = TaskInstance
+            TaskInstance expectedTaskInstance = TaskInstance
                     .builder()
                     .name("First task")
                     .status(Status.Reserved.toString())
@@ -1367,21 +1371,23 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
                     .processId(PROCESS_ID_USERTASK)
                     .containerId(CONTAINER_ID)
                     .processInstanceId(processInstanceId)
+                    .processType(WorkflowProcess.PROCESS_TYPE)
+                    .correlationKey(desc.getCorrelationKey())
                     .build();
 
             TaskInstance taskById = taskClient.findTaskById(taskSummary.getId());
-            assertTaskInstance(expectedTaskInstace, taskById);
+            assertTaskInstance(expectedTaskInstance, taskById);
             assertEquals(workItemId, taskById.getWorkItemId());
             assertNull(taskById.getSlaCompliance());
 
             taskById = taskClient.findTaskById(taskSummary.getId(), true);
-            assertTaskInstance(expectedTaskInstace, taskById);
+            assertTaskInstance(expectedTaskInstance, taskById);
             assertTrue(taskById.getSlaCompliance()==0);
             assertEquals(workItemId, taskById.getWorkItemId());
 
 
             taskById = taskClient.findTaskByWorkItemId(workItems.get(0).getId());
-            assertTaskInstance(expectedTaskInstace, taskById);
+            assertTaskInstance(expectedTaskInstance, taskById);
         } finally {
             processClient.abortProcessInstance(CONTAINER_ID, processInstanceId);
         }
@@ -1450,25 +1456,25 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
 
             List<TaskEventInstance> events = taskClient.findTaskEvents(taskInstance.getId(), 0, 10);
             assertNotNull(events);
-            assertEquals(1, events.size());
+            assertEquals(2, events.size());
 
             TaskEventInstance expectedTaskEventInstance = TaskEventInstance
                     .builder()
                     .type(TaskEvent.TaskEventType.ADDED.toString())
                     .processInstanceId(processInstanceId)
                     .taskId(taskInstance.getId())
-                    .user(PROCESS_ID_USERTASK)      // is this really correct to set process id as user for added task
+                    .assignedOwner(USER_YODA)
+                    .user(TestConfig.getUsername())
                     .build();
 
             TaskEventInstance event = events.get(0);
             assertTaskEventInstance(expectedTaskEventInstance, event);
-            //assertEquals(PROCESS_ID_USERTASK, event.getUserId());   // is this really correct to set process id as user for added task
 
             // now let's start it
             taskClient.startTask(CONTAINER_ID, taskInstance.getId(), USER_YODA);
             events = taskClient.findTaskEvents(taskInstance.getId(), 0, 10);
             assertNotNull(events);
-            assertEquals(2, events.size());
+            assertEquals(3, events.size());
 
             event = getTaskEventInstanceFromListByType(events, TaskEvent.TaskEventType.ADDED.toString());
             assertTaskEventInstance(expectedTaskEventInstance, event);
@@ -1483,11 +1489,11 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
 
             events = taskClient.findTaskEvents(taskInstance.getId(), 0, 10);
             assertNotNull(events);
-            assertEquals(3, events.size());
+            assertEquals(4, events.size());
 
             event = getTaskEventInstanceFromListByType(events, TaskEvent.TaskEventType.ADDED.toString());
             expectedTaskEventInstance.setType(TaskEvent.TaskEventType.ADDED.toString());
-            expectedTaskEventInstance.setUserId(PROCESS_ID_USERTASK);  // is this really correct to set process id as user for added task
+            expectedTaskEventInstance.setUserId(USER_YODA);
             assertTaskEventInstance(expectedTaskEventInstance, event);
 
             event = getTaskEventInstanceFromListByType(events, TaskEvent.TaskEventType.STARTED.toString());
@@ -1535,31 +1541,34 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
             taskClient.stopTask(CONTAINER_ID, taskInstance.getId(), USER_YODA);
 
             // test paging of the result
-            List<TaskEventInstance> events = taskClient.findTaskEvents(taskInstance.getId(), 0, 3, SORT_BY_TASK_EVENTS_TYPE, true);
+            List<TaskEventInstance> events = taskClient.findTaskEvents(taskInstance.getId(), 0, 4, SORT_BY_TASK_EVENTS_TYPE, true);
 
             assertNotNull(events);
-            assertEquals(3, events.size());
+            assertEquals(4, events.size());
 
             TaskEventInstance event = events.get(0);
             assertNotNull(event);
             assertEquals(taskInstance.getId(), event.getTaskId());
-            assertEquals(TaskEvent.TaskEventType.ADDED.toString(), event.getType());
+            assertEquals(TaskEvent.TaskEventType.ACTIVATED.toString(), event.getType());
 
             event = events.get(1);
             assertNotNull(event);
             assertEquals(taskInstance.getId(), event.getTaskId());
-            assertEquals(TaskEvent.TaskEventType.STARTED.toString(), event.getType());
+            assertEquals(TaskEvent.TaskEventType.ADDED.toString(), event.getType());
 
             event = events.get(2);
+            assertNotNull(event);
+            assertEquals(taskInstance.getId(), event.getTaskId());
+            assertEquals(TaskEvent.TaskEventType.STARTED.toString(), event.getType());
+
+            event = events.get(3);
             assertNotNull(event);
             assertEquals(taskInstance.getId(), event.getTaskId());
             assertEquals(TaskEvent.TaskEventType.STOPPED.toString(), event.getType());
 
             try {
-                events = taskClient.findTaskEvents(taskInstance.getId(), 1, 3, SORT_BY_TASK_EVENTS_TYPE, true);
+                events = taskClient.findTaskEvents(taskInstance.getId(), 2, 3, SORT_BY_TASK_EVENTS_TYPE, true);
                 KieServerAssert.assertNullOrEmpty("Task events list is not empty.", events);
-            } catch (TaskNotFoundException e) {
-                assertTrue(e.getMessage().contains( "No task found with id " + taskInstance.getId() ));
             } catch (KieServicesException ee) {
                 if(configuration.isRest()) {
                     KieServerAssert.assertResultContainsString(ee.getMessage(), "Could not find task instance with id " + taskInstance.getId());
@@ -1572,7 +1581,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
 
             events = taskClient.findTaskEvents(taskInstance.getId(), 0, 10, SORT_BY_TASK_EVENTS_TYPE, false);
             assertNotNull(events);
-            assertEquals(3, events.size());
+            assertEquals(4, events.size());
 
             event = events.get(0);
             assertNotNull(event);
@@ -1835,8 +1844,6 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
             } else {
                 assertTrue(e.getMessage().contains("No task found with id " + invalidId));
             }
-        } catch (TaskNotFoundException tnfe) {
-            assertTrue(tnfe.getMessage().contains("No task found with id " + invalidId));
         }
     }
 
@@ -1848,44 +1855,61 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         parameters.put("personData", createPersonInstance(USER_JOHN));
 
         Long processInstanceId = processClient.startProcess(CONTAINER_ID, PROCESS_ID_USERTASK, parameters);
+        
+        List<TaskSummary> tasks = taskClient.findTasksByStatusByProcessInstanceId(processInstanceId, null, 0, 10);
+        Assertions.assertThat(tasks).hasSize(1);
 
-        try {
+        SearchQueryFilterSpec spec = new SearchQueryFilterSpec();
+        spec.setAttributesQueryParams(list(equalsTo(PROCESS_ATTR_DEPLOYMENT_ID, CONTAINER_ID)));
+        List<ProcessInstanceCustomVars> listProcesses = queryClient.queryProcessesByVariables(spec, 0, 2);
+        Assertions.assertThat(listProcesses).extracting(ProcessInstanceCustomVars::getContainerId).containsOnly(CONTAINER_ID);
 
-            List<TaskSummary> tasks = taskClient.findTasksByStatusByProcessInstanceId(processInstanceId, null, 0, 10);
-            assertNotNull(tasks);
-            assertEquals(1, tasks.size());
+        SearchQueryFilterSpec specHistory = new SearchQueryFilterSpec();
+        specHistory.setAttributesQueryParams(list(history(), equalsTo(PROCESS_ATTR_DEPLOYMENT_ID, CONTAINER_ID)));
+        List<ProcessInstanceCustomVars> listHistoryProcesses = queryClient.queryProcessesByVariables(specHistory, 0, 2, "processInstanceId" , false);
+        assertNotNull(listHistoryProcesses);
+        listHistoryProcesses.stream().forEach(e -> assertEquals(CONTAINER_ID, e.getContainerId()));
+        
+        spec = new SearchQueryFilterSpec();
+        spec.setAttributesQueryParams(list(onlyActiveTasks(), equalsTo(PROCESS_ATTR_DEFINITION_ID, PROCESS_ID_USERTASK)));
+        List<ProcessInstanceUserTaskWithVariables> listTasks = queryClient.queryUserTaskByVariables(spec, 0, 2, "processInstanceId", true);
+        Assertions.assertThat(listTasks).hasSize(1).extracting(ProcessInstanceUserTaskWithVariables::getProcessDefinitionId).containsOnly(PROCESS_ID_USERTASK);
 
-            tasks = taskClient.findTasksAssignedAsPotentialOwner(USER_YODA, "First%", null, 0, 10);
-            assertNotNull(tasks);
-            assertEquals(1, tasks.size());
+        this.taskClient.startTask(CONTAINER_ID, listTasks.get(0).getId(), "yoda");
+        this.taskClient.completeTask(CONTAINER_ID, listTasks.get(0).getId(), "yoda", Collections.emptyMap());
 
-            tasks = taskClient.findTasksAssignedAsPotentialOwner(USER_YODA, "First%", null, 0, 10, "Status", false);
-            assertNotNull(tasks);
-            assertEquals(1, tasks.size());
+        spec = new SearchQueryFilterSpec();
+        spec.setAttributesQueryParams(list(onlyCompletedTasks(), equalsTo(PROCESS_ATTR_DEFINITION_ID, PROCESS_ID_USERTASK)));
 
-            SearchQueryFilterSpec spec = new SearchQueryFilterSpec();
-            spec.setAttributesQueryParams(list(equalsTo(PROCESS_ATTR_DEPLOYMENT_ID, CONTAINER_ID)));
-            List<ProcessInstanceCustomVars> listProcesses = queryClient.queryProcessesByVariables(spec, 0, 2);
-            assertNotNull(listProcesses);
-            listProcesses.stream().forEach(e -> assertEquals(CONTAINER_ID, e.getContainerId()));
+        listTasks = queryClient.queryUserTaskByVariables(spec, 0, 2, "task.id", false);
+        Assertions.assertThat(listTasks).hasSize(1);
 
-            spec = new SearchQueryFilterSpec();
-            spec.setAttributesQueryParams(list(in(PROCESS_ATTR_DEFINITION_ID, PROCESS_ID_USERTASK)));
-            List<ProcessInstanceUserTaskWithVariables> listTasks = queryClient.queryUserTaskByVariables(spec, 0, 2);
-            assertNotNull(listTasks);
-            listTasks.stream().forEach(e -> assertEquals(PROCESS_ID_USERTASK, e.getProcessDefinitionId()));
-        } finally {
-            processClient.abortProcessInstance(CONTAINER_ID, processInstanceId);
-        }
+        spec = new SearchQueryFilterSpec();
+        spec.setAttributesQueryParams(list(onlyActiveTasks(), equalsTo(PROCESS_ATTR_DEFINITION_ID, PROCESS_ID_USERTASK)));
+
+        listTasks = queryClient.queryUserTaskByVariables(spec, 0, 2, "task.id", true);
+        Assertions.assertThat(listTasks).hasSize(1);
+
+        this.taskClient.startTask(CONTAINER_ID, listTasks.get(0).getId(), "yoda");
+        this.taskClient.completeTask(CONTAINER_ID, listTasks.get(0).getId(), "yoda", Collections.emptyMap());
+
+        spec = new SearchQueryFilterSpec();
+        spec.setAttributesQueryParams(list(onlyActiveTasks(), equalsTo(PROCESS_ATTR_DEFINITION_ID, PROCESS_ID_USERTASK)));
+
+        listTasks = queryClient.queryUserTaskByVariables(spec, 0, 2);
+        Assertions.assertThat(listTasks).isEmpty();
+
+        spec = new SearchQueryFilterSpec();
+        spec.setAttributesQueryParams(list(onlyCompletedTasks(), equalsTo(PROCESS_ATTR_DEFINITION_ID, PROCESS_ID_USERTASK)));
+        listTasks = queryClient.queryUserTaskByVariables(spec, 0, 2);
+        Assertions.assertThat(listTasks).isEmpty();
     }
 
 
     private void checkProcessDefinitions(List<String> processIds) {
-        assertTrue(processIds.contains(PROCESS_ID_CALL_EVALUATION));
         assertTrue(processIds.contains(PROCESS_ID_EVALUATION));
         assertTrue(processIds.contains(PROCESS_ID_GROUPTASK));
         assertTrue(processIds.contains(PROCESS_ID_SIGNAL_PROCESS));
-        assertTrue(processIds.contains(PROCESS_ID_USERTASK));
         assertTrue(processIds.contains(PROCESS_ID_CUSTOM_TASK));
         assertTrue(processIds.contains(PROCESS_ID_SIGNAL_START));
         assertTrue(processIds.contains(PROCESS_ID_ASYNC_SCRIPT));
@@ -1926,6 +1950,8 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         assertEquals(expected.getProcessId(), actual.getProcessId());
         assertEquals(expected.getContainerId(), actual.getContainerId());
         assertEquals(expected.getProcessInstanceId(), actual.getProcessInstanceId());
+        assertEquals(expected.getCorrelationKey(), actual.getCorrelationKey());
+        assertEquals(expected.getProcessType(), actual.getProcessType());
     }
 
     private void assertTaskEventInstance(TaskEventInstance expected, TaskEventInstance actual) {
@@ -1934,6 +1960,7 @@ public class RuntimeDataServiceIntegrationTest extends JbpmKieServerBaseIntegrat
         assertEquals(expected.getProcessInstanceId(), actual.getProcessInstanceId());
         assertEquals(expected.getTaskId(), actual.getTaskId());
         assertEquals(expected.getUserId(), actual.getUserId());
+        assertEquals(expected.getAssignedOwner(), actual.getAssignedOwner());
         assertNotNull(actual.getId());
         assertNotNull(actual.getLogTime());
         assertNotNull(actual.getWorkItemId());

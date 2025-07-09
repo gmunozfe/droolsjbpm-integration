@@ -18,6 +18,8 @@ package org.kie.server.api;
 
 public class KieServerConstants {
 
+    public static final String KIE_JBPM_SERVER_CLIENT_FAILED_ENDPOINT_INTERVAL_CHECK = "org.kie.server.client.loadbalancer.failedEndpointIntervalCheck";
+    public static final String IS_DISPOSE_CONTAINER_PARAM = "jBPMExtensionIsDisposeContainer";
     public static final String LOCATION_HEADER = "Location";
 
     public static final String CLASS_TYPE_HEADER = "X-KIE-ClassType";
@@ -32,10 +34,12 @@ public class KieServerConstants {
     public static final String KIE_CASE_SERVER_EXT_DISABLED = "org.jbpm.case.server.ext.disabled";
     public static final String KIE_DMN_SERVER_EXT_DISABLED = "org.kie.dmn.server.ext.disabled";
     public static final String KIE_SWAGGER_SERVER_EXT_DISABLED = "org.kie.swagger.server.ext.disabled";
+    public static final String KIE_KAFKA_SERVER_EXT_DISABLED = "org.kie.kafka.server.ext.disabled";
     public static final String KIE_PROMETHEUS_SERVER_EXT_DISABLED = "org.kie.prometheus.server.ext.disabled";
     public static final String KIE_SCENARIO_SIMULATION_SERVER_EXT_DISABLED = "org.kie.scenariosimulation.server.ext.disabled";
     public static final String KIE_TASK_ASSIGNING_PLANNING_EXT_DISABLED = "org.kie.server.taskAssigning.planning.ext.disabled";
     public static final String KIE_TASK_ASSIGNING_RUNTIME_EXT_DISABLED = "org.kie.server.taskAssigning.runtime.ext.disabled";
+    public static final String KIE_JBPM_CLUSTER_SERVER_EXT_DISABLED = "org.kie.jbpm.cluster.server.ext.disabled";
 
     public static final String KIE_DROOLS_FILTER_REMOTEABLE_CLASSES = "org.drools.server.filter.classes";
 
@@ -52,14 +56,19 @@ public class KieServerConstants {
     public static final String KIE_SERVER_STATE_IMMUTABLE_INIT = "org.kie.server.state.immutable.init";
     public static final String KIE_SERVER_CONTAINER_DEPLOYMENT = "org.kie.server.container.deployment";
     public static final String KIE_SERVER_CONTAINER_LOCATOR = "org.kie.server.container.locator";
+    public static final String KIE_SERVER_PROCESS_INSTANCE_CONTAINER_LOCATOR = "org.kie.server.process.instance.container.locator";
     public static final String KIE_SERVER_ACTIVATE_POLICIES = "org.kie.server.policy.activate";
     public static final String KIE_SERVER_MGMT_API_DISABLED = "org.kie.server.mgmt.api.disabled";
     public static final String KIE_SERVER_STARTUP_STRATEGY = "org.kie.server.startup.strategy";
     public static final String KIE_SERVER_MODE = "org.kie.server.mode";
     public static final String KIE_SERVER_INCLUDE_STACKTRACE = "org.kie.server.stacktrace.included";
     public static final String KIE_SERVER_STRICT_ID_FORMAT = "org.kie.server.strict.id.format";
+    public static final String JSON_HANDLE_XML_ANY_ELEMENTS_NAMES = "org.kie.server.strict.json.xmlanyelements";
+    public static final String KIE_SERVER_STRICT_JAVABEANS_SERIALIZERS = "org.kie.server.strict.javaBeans.serializers";
+    public static final String KIE_SERVER_STRICT_JAXB_FORMAT = "org.kie.server.strict.jaxb.format";
     public static final String KIE_SERVER_IMAGESERVICE_MAX_NODES = "org.kie.server.service.image.max_nodes";
-
+    public static final String KIE_SERVER_REST_MODE_READONLY = "org.kie.server.rest.mode.readonly";
+    public static final String KIE_SERVER_NOTIFY_UPDATES_TO_CONTROLLERS = "org.kie.server.update.notifications.rest.enabled";
     // configuration parameters
     public static final String CFG_PERSISTANCE_DS = "org.kie.server.persistence.ds";
     public static final String CFG_PERSISTANCE_TM = "org.kie.server.persistence.tm";
@@ -78,6 +87,7 @@ public class KieServerConstants {
     public static final String CFG_KIE_USER = "org.kie.server.user";
     public static final String CFG_KIE_PASSWORD = "org.kie.server.pwd";
     public static final String CFG_KIE_TOKEN = "org.kie.server.token";
+    public static final String CFG_KIE_ISSUER = "org.kie.server.issuer";
 
     /**
      * Security settings used to connect to KIE Server Controller
@@ -85,6 +95,7 @@ public class KieServerConstants {
     public static final String CFG_KIE_CONTROLLER_USER = "org.kie.server.controller.user";
     public static final String CFG_KIE_CONTROLLER_PASSWORD = "org.kie.server.controller.pwd";
     public static final String CFG_KIE_CONTROLLER_TOKEN = "org.kie.server.controller.token";
+    public static final String CFG_KIE_CONTROLLER_TIMEOUT = "org.kie.server.controller.timeout";
 
     // non kie server parameters but used by its extensions etc
     public static final String CFG_HT_CALLBACK = "org.jbpm.ht.callback";
@@ -108,6 +119,8 @@ public class KieServerConstants {
     public static final String CFG_KIE_MVN_SETTINGS = "kie.maven.settings.custom";
 
     public static final String CFG_SYNC_DEPLOYMENT = "org.kie.server.sync.deploy";
+
+    public static final String CFG_SB_CXF_PATH = "org.kie.server.sb.cfg.cxf.path";
 
     public static final String KIE_SERVER_PARAM_MODULE_METADATA = "KieModuleMetaData";
     public static final String KIE_SERVER_PARAM_MESSAGES = "ContainerMessages";
@@ -134,10 +147,12 @@ public class KieServerConstants {
     public static final String CAPABILITY_CASE = "CaseMgmt"; // Case Management
     public static final String CAPABILITY_DMN = "DMN"; // DMN
     public static final String CAPABILITY_SWAGGER = "Swagger"; // Swagger
+    public static final String CAPABILITY_BPM_KAFKA = "BPM-KAFKA"; // Business Process Management Kafka
     public static final String CAPABILITY_PROMETHEUS = "Prometheus"; // Prometheus
     public static final String CAPABILITY_SCENARIO_SIMULATION = "Scenario Simulation"; // Scenario Simulation
     public static final String CAPABILITY_TASK_ASSIGNING_RUNTIME = "TaskAssigningRuntime"; //Task Assigning Runtime
-
+    public static final String CAPABILITY_JBPM_CLUSTER = "BPM-Cluster"; // Business Process Management cluster support
+    
     public static final String FAILURE_REASON_PROP = "failure-reason";
 
     // case management constants
@@ -164,4 +179,6 @@ public class KieServerConstants {
     public static final String SYSTEM_XSTREAM_ENABLED_PACKAGES = "org.kie.server.xstream.enabled.packages";
 
     public static final String RESET_CONTAINER_BEFORE_UPDATE = "resetBeforeUpdate";
+
+    public static final String JSON_CUSTOM_OBJECT_DESERIALIZER_CNFE_BEHAVIOR = "org.kie.server.json.customObjectDeserializerCNFEBehavior";
 }

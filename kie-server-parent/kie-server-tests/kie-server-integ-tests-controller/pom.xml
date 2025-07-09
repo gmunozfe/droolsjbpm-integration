@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.kie.server</groupId>
     <artifactId>kie-server-tests</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>kie-server-integ-tests-controller</artifactId>
@@ -17,53 +17,8 @@
     <version.org.glassfish.tyrus>1.11.1</version.org.glassfish.tyrus>
   </properties>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.kie.server</groupId>
-        <artifactId>kie-server-controller-standalone</artifactId>
-        <classifier>ee7</classifier>
-        <type>war</type>
-        <scope>test</scope>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.kie.server</groupId>
-        <artifactId>kie-server-controller-standalone</artifactId>
-        <classifier>webc</classifier>
-        <type>war</type>
-        <scope>test</scope>
-        <version>${project.version}</version>
-      </dependency>
-     <dependency>
-        <groupId>org.glassfish.tyrus</groupId>
-        <artifactId>tyrus-container-jdk-client</artifactId>
-        <version>${version.org.glassfish.tyrus}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.glassfish.tyrus</groupId>
-        <artifactId>tyrus-spi</artifactId>
-        <version>${version.org.glassfish.tyrus}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.glassfish.tyrus</groupId>
-        <artifactId>tyrus-client</artifactId>
-        <version>${version.org.glassfish.tyrus}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.glassfish.tyrus</groupId>
-        <artifactId>tyrus-core</artifactId>
-        <version>${version.org.glassfish.tyrus}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jboss.spec.javax.websocket</groupId>
-        <artifactId>jboss-websocket-api_1.1_spec</artifactId>
-        <version>1.1.1.Final</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <dependencies>
+    <!-- Common Kie server test classes -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-integ-tests-common</artifactId>
@@ -78,44 +33,6 @@
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server-controller-api</artifactId>
-    </dependency>
-
-    <!-- REST -->
-    <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-jaxrs</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>net.jcip</groupId>
-          <artifactId>jcip-annotations</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    
-    <!-- websocket -->
-    <dependency>
-      <groupId>io.undertow</groupId>
-      <artifactId>undertow-servlet</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.kie.server</groupId>
@@ -132,19 +49,15 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+      <scope>test</scope>
     </dependency>
-    <!-- Replacement for the above excluded 'commons-logging:commons-logging' -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
     </dependency>
 
+    <!-- Deployments for application servers -->
     <dependency>
       <groupId>org.kie.server</groupId>
       <artifactId>kie-server</artifactId>
@@ -214,7 +127,7 @@
         </plugin>
         <plugin>
           <groupId>org.codehaus.cargo</groupId>
-          <artifactId>cargo-maven2-plugin</artifactId>
+          <artifactId>cargo-maven3-plugin</artifactId>
           <configuration>
             <container>
               <systemProperties>
@@ -226,6 +139,7 @@
                 <org.kie.server.user>yoda</org.kie.server.user>
                 <org.kie.server.pwd>usetheforce123@</org.kie.server.pwd>
                 <org.kie.controller.ping.alive.timeout>1000</org.kie.controller.ping.alive.timeout>
+                <org.kie.server.services.jbpm.security.filesystemrealm.folder-path>${project.basedir}/target/cargo/configurations/wildfly23x/kie-fs-realm-users</org.kie.server.services.jbpm.security.filesystemrealm.folder-path>
               </systemProperties>
             </container>
             <deployables combine.children="append">
@@ -259,7 +173,7 @@
     <plugins>
       <plugin>
         <groupId>org.codehaus.cargo</groupId>
-        <artifactId>cargo-maven2-plugin</artifactId>
+        <artifactId>cargo-maven3-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
@@ -272,13 +186,19 @@
       </activation>
       <dependencies>
         <dependency>
-          <groupId>org.jboss.spec.javax.websocket</groupId>
-          <artifactId>jboss-websocket-api_1.1_spec</artifactId>
+          <groupId>jakarta.websocket</groupId>
+          <artifactId>jakarta.websocket-api</artifactId>
         </dependency>
       </dependencies>
     </profile>
     <profile>
       <id>tomcat9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>tomcat9</value>
+        </property>
+      </activation>
       <properties>
         <kie.server.controller.classifier>webc</kie.server.controller.classifier>
       </properties>
@@ -292,6 +212,12 @@
     </profile>
     <profile>
       <id>wildfly</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>wildfly</value>
+        </property>
+      </activation>
       <dependencies>
         <dependency>
           <groupId>io.undertow</groupId>
@@ -302,6 +228,12 @@
     </profile>
     <profile>
       <id>eap7</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>eap7</value>
+        </property>
+      </activation>
       <dependencies>
         <dependency>
           <groupId>io.undertow</groupId>
@@ -312,6 +244,36 @@
     </profile>
     <profile>
       <id>oracle-wls-12</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>oracle-wls-12</value>
+        </property>
+      </activation>
+      <dependencyManagement>
+        <dependencies>
+         <dependency>
+            <groupId>org.glassfish.tyrus</groupId>
+            <artifactId>tyrus-container-jdk-client</artifactId>
+            <version>${version.org.glassfish.tyrus}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.glassfish.tyrus</groupId>
+            <artifactId>tyrus-spi</artifactId>
+            <version>${version.org.glassfish.tyrus}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.glassfish.tyrus</groupId>
+            <artifactId>tyrus-client</artifactId>
+            <version>${version.org.glassfish.tyrus}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.glassfish.tyrus</groupId>
+            <artifactId>tyrus-core</artifactId>
+            <version>${version.org.glassfish.tyrus}</version>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
       <dependencies>
         <dependency>
           <groupId>org.glassfish.tyrus</groupId>
@@ -337,6 +299,12 @@
     </profile>
     <profile>
       <id>websphere9</id>
+      <activation>
+        <property>
+          <name>container.profile</name>
+          <value>websphere9</value>
+        </property>
+      </activation>
       <dependencies>
         <dependency>
           <groupId>io.undertow</groupId>

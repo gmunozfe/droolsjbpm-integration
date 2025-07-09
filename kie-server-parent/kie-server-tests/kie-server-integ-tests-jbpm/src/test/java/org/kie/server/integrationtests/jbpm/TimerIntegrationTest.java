@@ -40,7 +40,7 @@ public class TimerIntegrationTest extends JbpmKieServerBaseIntegrationTest {
     private static ReleaseId releaseId = new ReleaseId("org.kie.server.testing", "timer-project",
             "1.0.0.Final");
 
-    @Parameterized.Parameters(name = "{index}: {0} {1} {2}")
+    @Parameterized.Parameters(name = "{0} {1} {2}")
     public static Collection<Object[]> data() {
         KieServicesConfiguration configuration = createKieServicesRestConfiguration();
 
@@ -64,6 +64,11 @@ public class TimerIntegrationTest extends JbpmKieServerBaseIntegrationTest {
 
     @After
     public void disposeContainers() {
+        String containerId = "timer-project-" + runtimeStrategy;
+        List<ProcessInstance> startedInstances = queryClient.findProcessInstancesByContainerId(containerId, null, 0, 10, "log.processInstanceId", false);
+        for(ProcessInstance processInstanceId : startedInstances) {
+            processClient.abortProcessInstance(containerId, processInstanceId.getId());
+        }
         disposeAllContainers();
     }
 
@@ -75,9 +80,10 @@ public class TimerIntegrationTest extends JbpmKieServerBaseIntegrationTest {
         List<Integer> completedOnly = Arrays.asList(2);
         KieServerSynchronization.waitForProcessInstanceStart(queryClient, containerId, 3, completedOnly);
 
-        List<ProcessInstance> startedInstances = queryClient.findProcessInstancesByContainerId(containerId, completedOnly, 0, 10, "Id", false);
+        List<ProcessInstance> startedInstances = queryClient.findProcessInstancesByContainerId(containerId, completedOnly, 0, 10, "log.processInstanceId", false);
 
         assertEquals(3, startedInstances.size());
+        assertEquals(Long.valueOf(3), queryClient.countProcessInstancesByContainerId(containerId, completedOnly));
 
         long thirdInstance = startedInstances.get(0).getDate().getTime();
         long secondInstance = startedInstances.get(1).getDate().getTime();

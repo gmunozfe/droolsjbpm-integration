@@ -34,8 +34,11 @@ import java.util.Map;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.commons.io.IOUtils;
 import org.assertj.core.util.Arrays;
 import org.assertj.core.util.Files;
+import org.drools.core.command.runtime.BatchExecutionCommandImpl;
+import org.drools.core.command.runtime.rule.InsertObjectCommand;
 import org.drools.core.xml.jaxb.util.JaxbUnknownAdapter;
 import org.junit.After;
 import org.junit.Test;
@@ -43,6 +46,7 @@ import org.kie.server.api.marshalling.json.JSONMarshaller;
 import org.kie.server.api.marshalling.objects.DateObject;
 import org.kie.server.api.marshalling.objects.DateObjectUnannotated;
 import org.kie.server.api.model.definition.QueryParam;
+import org.skyscreamer.jsonassert.JSONAssert;
 
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -50,6 +54,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.skyscreamer.jsonassert.JSONCompareMode.STRICT;
 
 public class JSONMarshallerTest {
 
@@ -171,6 +176,25 @@ public class JSONMarshallerTest {
             this.r = r;
         }
     }
+    
+    public static class Order {
+
+        private String ORDER_ID;
+        
+        public Order() {}
+        
+        public Order(String o){
+            this.ORDER_ID = o;
+        }
+
+        public String getORDER_ID() {
+            return ORDER_ID;
+        }
+
+        public void setORDER_ID(String o) {
+            this.ORDER_ID = o;
+        }
+    }
 
     @Test
     public void testRecursiveMap() {
@@ -230,5 +254,234 @@ public class JSONMarshallerTest {
         assertEquals(1, params.length);
         assertThat(Arrays.asList(params), everyItem(instanceOf(QueryParam.class)));
     }
+    
+    @Test
+    public void testCapitalizedFieldnames() throws Exception {
+        Marshaller marshaller = new JSONMarshaller(new HashSet<>(),getClass().getClassLoader(), false, true); 
 
+        Order order = new Order("all");
+        String converted = marshaller.marshall(order);
+        String expectedMarshalled = "{\"ORDER_ID\" : \"all\"}";
+
+        JSONAssert.assertEquals(expectedMarshalled, converted, STRICT);
+        
+        Order unconverted = marshaller.unmarshall(converted, Order.class);
+        assertEquals("all", unconverted.getORDER_ID());
+    }
+
+    @Test
+    public void testLegacyFieldnames() throws Exception {
+        Marshaller marshaller = new JSONMarshaller(new HashSet<>(),getClass().getClassLoader(), false, false); 
+
+        Order order = new Order("all");
+        String converted = marshaller.marshall(order);
+        String expectedMarshalled = "{\"order_ID\" : \"all\"}";
+
+        JSONAssert.assertEquals(expectedMarshalled, converted, STRICT);
+        
+        Order unconverted = marshaller.unmarshall(converted, Order.class);
+        assertEquals("all", unconverted.getORDER_ID());
+    }
+
+    @Test
+    public void testCapitalizedWrapObjectFieldnames() throws Exception {
+        Marshaller marshaller = new JSONMarshaller(new HashSet<>(),getClass().getClassLoader(), false, true); 
+
+        BatchExecutionCommandImpl batch = new BatchExecutionCommandImpl();
+        batch.addCommand(new InsertObjectCommand(new Order("all")));
+
+        String converted = marshaller.marshall(batch);
+        String expectedMarshalled = "{ \"lookup\" : null, \"commands\" : [ { \"insert\" : " +
+                                    "{ \"object\" : {\"org.kie.server.api.marshalling.JSONMarshallerTest$Order\":{ \"ORDER_ID\" : \"all\" }}, " +
+                                    "\"out-identifier\" : null, \"return-object\" : true, \"entry-point\" : \"DEFAULT\", \"disconnected\" : false } } ] }";
+        
+        JSONAssert.assertEquals(expectedMarshalled, converted, STRICT);
+
+        BatchExecutionCommandImpl unconverted = marshaller.unmarshall(converted, BatchExecutionCommandImpl.class);
+        assertEquals("all", ((Order) ((InsertObjectCommand) unconverted.getCommands().get(0)).getObject()).getORDER_ID());
+    }
+
+    @Test
+    public void testLegalizeWrapObjectFieldnames() throws Exception {
+        Marshaller marshaller = new JSONMarshaller(new HashSet<>(),getClass().getClassLoader(), false, false); 
+
+        BatchExecutionCommandImpl batch = new BatchExecutionCommandImpl();
+        batch.addCommand(new InsertObjectCommand(new Order("all")));
+
+        String converted = marshaller.marshall(batch);
+        String expectedMarshalled = "{ \"lookup\" : null, \"commands\" : [ { \"insert\" : " +
+                "{ \"object\" : {\"org.kie.server.api.marshalling.JSONMarshallerTest$Order\":{ \"order_ID\" : \"all\" }}, " +
+                "\"out-identifier\" : null, \"return-object\" : true, \"entry-point\" : \"DEFAULT\", \"disconnected\" : false } } ] }";
+
+        JSONAssert.assertEquals(expectedMarshalled, converted, STRICT);
+
+        BatchExecutionCommandImpl unconverted = marshaller.unmarshall(converted, BatchExecutionCommandImpl.class);
+        assertEquals("all", ((Order) ((InsertObjectCommand) unconverted.getCommands().get(0)).getObject()).getORDER_ID());
+    }
+
+    @Test
+    public void testLocalDateTimeWithClasses() throws Exception {
+        HashSet hs = new HashSet<>();
+        hs.add(org.kie.server.api.marshalling.Person.class);
+        hs.add(org.kie.server.api.marshalling.SupportedlDate.class);
+        Marshaller marshaller = new JSONMarshaller(hs, getClass().getClassLoader(), false, false);
+
+        String wrapLocalDateTimeWithType = "{\"person\":{\"org.kie.server.api.marshalling.Person\":{\"fullname\":\"123\",\"dateBirth\":{\"java.time.LocalDateTime\":\"2022-05-19T00:00\"},\"age\":\"21\"}}}";
+        Map converted = marshaller.unmarshall(wrapLocalDateTimeWithType, Map.class);
+        assertEquals(org.kie.server.api.marshalling.Person.class, converted.get("person").getClass());
+        assertEquals(java.time.LocalDateTime.class, ((Person) converted.get("person")).getDateBirth().getClass());
+
+        String wrapLocalDateTimeWithoutType = "{\"person\":{\"org.kie.server.api.marshalling.Person\":{\"fullname\":\"123\",\"dateBirth\":\"2022-05-19T00:00\",\"age\":\"21\"}}}";
+        Map converted1 = marshaller.unmarshall(wrapLocalDateTimeWithoutType, Map.class);
+        assertEquals(org.kie.server.api.marshalling.Person.class, converted1.get("person").getClass());
+        assertEquals(java.time.LocalDateTime.class, ((Person) converted1.get("person")).getDateBirth().getClass());
+
+        String localDateTimeStringWithType = "{\n" +
+                "    \"bdate\":{\"java.time.LocalDateTime\":\"2022-05-17T14:54\"},\n" +
+                "      \"name\":\"123\",\n" +
+                "       \"bbdate\":{\"java.time.LocalDateTime\":\"2022-05-18T00:00\"}\n" +
+                "}";
+        Map converted2 = marshaller.unmarshall(localDateTimeStringWithType, Map.class);
+        assertEquals(java.time.LocalDateTime.class, converted2.get("bdate").getClass());
+
+        String localDateTimeStringWithoutType = "{\n" +
+                "    \"bdate\":\"2022-05-17T14:54\",\n" +
+                "      \"name\":\"123\",\n" +
+                "       \"bbdate\":\"2022-05-18T00:00\"}\n" +
+                "}";
+        Map converted3 = marshaller.unmarshall(localDateTimeStringWithoutType, Map.class);
+        assertEquals(String.class, converted3.get("bdate").getClass());
+
+        Map convertedSupportedDateType = marshaller.unmarshall(IOUtils.toString(this.getClass().getResourceAsStream("/supportedDateType.json")), Map.class);
+        assertEquals(java.time.LocalDateTime.class, convertedSupportedDateType.get("bdate").getClass());
+        assertEquals(java.time.LocalDateTime.class, convertedSupportedDateType.get("bbdate").getClass());
+        assertEquals(java.time.LocalDate.class, convertedSupportedDateType.get("localdate").getClass());
+        assertEquals(java.time.LocalTime.class, convertedSupportedDateType.get("localtime").getClass());
+        assertEquals(java.time.OffsetDateTime.class, convertedSupportedDateType.get("offsetDateTime").getClass());
+        assertEquals(java.util.Date.class, convertedSupportedDateType.get("utildate").getClass());
+
+        assertEquals(SupportedlDate.class, convertedSupportedDateType.get("sqldate").getClass());
+
+        SupportedlDate supportedDate = (SupportedlDate) convertedSupportedDateType.get("sqldate");
+        assertEquals(java.util.Date.class, supportedDate.getUtildate().getClass());
+        assertEquals(java.time.LocalDateTime.class, supportedDate.getLocalDateTime().getClass());
+        assertEquals(java.time.LocalDate.class, supportedDate.getLocalDate().getClass());
+        assertEquals(java.time.LocalTime.class, supportedDate.getLocalTime().getClass());
+        assertEquals(java.time.OffsetDateTime.class, supportedDate.getOffsetDateTime().getClass());
+    }
 }
+
+class SupportedlDate {
+
+    private java.util.Date utildate;
+    private java.time.LocalDate localDate;
+    private java.time.LocalDateTime localDateTime;
+    private java.time.LocalTime localTime;
+    private java.time.OffsetDateTime offsetDateTime;
+
+    public SupportedlDate() {
+    }
+
+    public java.util.Date getUtildate() {
+        return this.utildate;
+    }
+
+    public void setUtildate(java.util.Date utildate) {
+        this.utildate = utildate;
+    }
+
+    public java.time.LocalDate getLocalDate() {
+        return this.localDate;
+    }
+
+    public void setLocalDate(java.time.LocalDate localDate) {
+        this.localDate = localDate;
+    }
+
+    public java.time.LocalDateTime getLocalDateTime() {
+        return this.localDateTime;
+    }
+
+    public void setLocalDateTime(java.time.LocalDateTime localDateTime) {
+        this.localDateTime = localDateTime;
+    }
+
+    public java.time.LocalTime getLocalTime() {
+        return this.localTime;
+    }
+
+    public void setLocalTime(java.time.LocalTime localTime) {
+        this.localTime = localTime;
+    }
+
+    public java.time.OffsetDateTime getOffsetDateTime() {
+        return this.offsetDateTime;
+    }
+
+    public void setOffsetDateTime(java.time.OffsetDateTime offsetDateTime) {
+        this.offsetDateTime = offsetDateTime;
+    }
+}
+
+class Person {
+
+    private java.lang.String fullname;
+    private java.lang.Integer age;
+    private java.time.LocalDateTime dateBirth;
+    private java.util.Date date;
+    private java.time.LocalTime localTime;
+    private java.time.OffsetDateTime offsetDateTime;
+
+    public LocalTime getLocalTime() {
+        return localTime;
+    }
+
+    public void setLocalTime(LocalTime localTime) {
+        this.localTime = localTime;
+    }
+
+    public OffsetDateTime getOffsetDateTime() {
+        return offsetDateTime;
+    }
+
+    public void setOffsetDateTime(OffsetDateTime offsetDateTime) {
+        this.offsetDateTime = offsetDateTime;
+    }
+
+    public Person() {
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
+    public void setDate(Date date) {
+        this.date = date;
+    }
+
+    public java.lang.String getFullname() {
+        return this.fullname;
+    }
+
+    public void setFullname(java.lang.String fullname) {
+        this.fullname = fullname;
+    }
+
+    public java.lang.Integer getAge() {
+        return this.age;
+    }
+
+    public void setAge(java.lang.Integer age) {
+        this.age = age;
+    }
+
+    public java.time.LocalDateTime getDateBirth() {
+        return this.dateBirth;
+    }
+
+    public void setDateBirth(java.time.LocalDateTime dateBirth) {
+        this.dateBirth = dateBirth;
+    }
+}
+
+

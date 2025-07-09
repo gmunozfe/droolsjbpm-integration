@@ -15,52 +15,12 @@
 
 package org.kie.server.services.jbpm;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.jbpm.services.api.AdvanceRuntimeDataService;
-import org.jbpm.services.api.ProcessInstanceNotFoundException;
-import org.jbpm.services.api.RuntimeDataService;
-import org.jbpm.services.api.TaskNotFoundException;
-import org.jbpm.services.api.model.NodeInstanceDesc;
-import org.jbpm.services.api.model.ProcessDefinition;
-import org.jbpm.services.api.model.ProcessInstanceDesc;
-import org.jbpm.services.api.model.UserTaskInstanceDesc;
-import org.jbpm.services.api.model.VariableDesc;
-import org.kie.api.runtime.process.ProcessInstance;
-import org.kie.api.runtime.query.QueryContext;
-import org.kie.api.task.model.Status;
-import org.kie.api.task.model.TaskSummary;
-import org.kie.internal.KieInternalServices;
-import org.kie.internal.identity.IdentityProvider;
-import org.kie.internal.process.CorrelationKey;
-import org.kie.internal.process.CorrelationKeyFactory;
-import org.kie.internal.query.QueryFilter;
-import org.kie.internal.task.api.AuditTask;
-import org.kie.internal.task.api.model.TaskEvent;
-import org.kie.server.api.KieServerConstants;
-import org.kie.server.api.model.definition.ProcessDefinitionList;
-import org.kie.server.api.model.definition.SearchQueryFilterSpec;
-import org.kie.server.api.model.instance.NodeInstance;
-import org.kie.server.api.model.instance.NodeInstanceList;
-import org.kie.server.api.model.instance.ProcessInstanceCustomVarsList;
-import org.kie.server.api.model.instance.ProcessInstanceList;
-import org.kie.server.api.model.instance.ProcessInstanceUserTaskWithVariablesList;
-import org.kie.server.api.model.instance.TaskEventInstance;
-import org.kie.server.api.model.instance.TaskEventInstanceList;
-import org.kie.server.api.model.instance.TaskInstance;
-import org.kie.server.api.model.instance.TaskSummaryList;
-import org.kie.server.api.model.instance.VariableInstanceList;
-import org.kie.server.services.api.KieServerRegistry;
-import org.kie.server.services.impl.locator.ContainerLocatorProvider;
-import org.kie.server.services.impl.marshal.MarshallerHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
+import static org.jbpm.services.api.AdvanceRuntimeDataService.TASK_ATTR_NAME;
+import static org.jbpm.services.api.AdvanceRuntimeDataService.TASK_ATTR_OWNER;
+import static org.jbpm.services.api.AdvanceRuntimeDataService.TASK_ATTR_STATUS;
+import static org.jbpm.services.api.query.model.QueryParam.all;
 import static org.kie.server.services.jbpm.ConvertUtils.buildQueryContext;
 import static org.kie.server.services.jbpm.ConvertUtils.buildQueryFilter;
 import static org.kie.server.services.jbpm.ConvertUtils.buildTaskByNameQueryFilter;
@@ -78,6 +38,56 @@ import static org.kie.server.services.jbpm.ConvertUtils.convertToTaskSummaryList
 import static org.kie.server.services.jbpm.ConvertUtils.convertToUserTaskWithVariablesList;
 import static org.kie.server.services.jbpm.ConvertUtils.convertToVariablesList;
 import static org.kie.server.services.jbpm.ConvertUtils.nullEmpty;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.jbpm.services.api.AdvanceRuntimeDataService;
+import org.jbpm.services.api.DeploymentNotFoundException;
+import org.jbpm.services.api.ProcessInstanceNotFoundException;
+import org.jbpm.services.api.RuntimeDataService;
+import org.jbpm.services.api.RuntimeDataService.EntryType;
+import org.jbpm.services.api.TaskNotFoundException;
+import org.jbpm.services.api.model.NodeInstanceDesc;
+import org.jbpm.services.api.model.ProcessDefinition;
+import org.jbpm.services.api.model.ProcessInstanceDesc;
+import org.jbpm.services.api.model.UserTaskInstanceDesc;
+import org.jbpm.services.api.model.VariableDesc;
+import org.jbpm.services.api.query.model.QueryParam;
+import org.kie.api.runtime.process.ProcessInstance;
+import org.kie.api.runtime.query.QueryContext;
+import org.kie.api.task.model.Status;
+import org.kie.api.task.model.TaskSummary;
+import org.kie.internal.KieInternalServices;
+import org.kie.internal.identity.IdentityProvider;
+import org.kie.internal.process.CorrelationKey;
+import org.kie.internal.process.CorrelationKeyFactory;
+import org.kie.internal.query.QueryFilter;
+import org.kie.internal.task.api.AuditTask;
+import org.kie.internal.task.api.model.TaskEvent;
+import org.kie.server.api.KieServerConstants;
+import org.kie.server.api.model.definition.CountDefinition;
+import org.kie.server.api.model.definition.ProcessDefinitionList;
+import org.kie.server.api.model.definition.SearchQueryFilterSpec;
+import org.kie.server.api.model.instance.NodeInstance;
+import org.kie.server.api.model.instance.NodeInstanceList;
+import org.kie.server.api.model.instance.ProcessInstanceCustomVarsList;
+import org.kie.server.api.model.instance.ProcessInstanceList;
+import org.kie.server.api.model.instance.ProcessInstanceUserTaskWithVariablesList;
+import org.kie.server.api.model.instance.TaskEventInstance;
+import org.kie.server.api.model.instance.TaskEventInstanceList;
+import org.kie.server.api.model.instance.TaskInstance;
+import org.kie.server.api.model.instance.TaskSummaryList;
+import org.kie.server.api.model.instance.VariableInstanceList;
+import org.kie.server.services.api.KieServerRegistry;
+import org.kie.server.services.impl.locator.ContainerLocatorProvider;
+import org.kie.server.services.impl.marshal.MarshallerHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RuntimeDataServiceBase {
 
@@ -105,6 +115,9 @@ public class RuntimeDataServiceBase {
 
     protected String getUser(String queryParamUser) {
         if (bypassAuthUser) {
+            if (queryParamUser == null || queryParamUser.isEmpty()) {
+        	    return identityProvider.getName();
+            }
             return queryParamUser;
         }
 
@@ -177,7 +190,19 @@ public class RuntimeDataServiceBase {
         return processInstanceList;
     }
 
+    public CountDefinition countProcessInstancesByDeploymentId(String containerId, List<Integer> status) {
+        if (status == null || status.isEmpty()) {
+            status = new ArrayList<>();
+            status.add(ProcessInstance.STATE_ACTIVE);
+        }
+        logger.debug("About to search for process instance belonging to container '{}'", containerId);
 
+        Long instances = runtimeDataService.countProcessInstancesByDeploymentId(containerId, status);
+        logger.debug("Found {} process instance for container '{}', statuses '{}'", instances, containerId, status);
+
+        return new CountDefinition(instances);
+    }
+    
     public ProcessInstanceList getProcessInstancesByCorrelationKey(String correlationKey, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         if (sort == null || sort.isEmpty()) {
             sort = "ProcessInstanceId";
@@ -289,6 +314,15 @@ public class RuntimeDataServiceBase {
         return nodeInstanceList;
     }
 
+    public NodeInstanceList getProcessInstanceFullHistoryByType(long processInstanceId, String entryType, Integer page, Integer pageSize) {
+
+        logger.debug("About to search for node instances with page {} and page size {}", page, pageSize);
+        Collection<NodeInstanceDesc> result = null;
+
+        result = runtimeDataService.getProcessInstanceFullHistoryByType(processInstanceId, EntryType.valueOf(entryType), buildQueryContext(page, pageSize));
+        return convertToNodeInstanceList(result);
+    }
+
     public VariableInstanceList getVariablesCurrentState(long processInstanceId) {
         logger.debug("About to search for variables within process instance  '{}'", processInstanceId);
 
@@ -317,22 +351,34 @@ public class RuntimeDataServiceBase {
 
     public ProcessDefinitionList getProcessesByDeploymentId(String containerId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         try {
-            containerId = context.getContainerId(containerId, ContainerLocatorProvider.get().getLocator());
-            logger.debug("About to search for process definitions within container '{}' with page {} and page size {}", containerId, page, pageSize);
-            if (sort == null || sort.isEmpty()) {
-                sort = "ProcessName";
-            }
-            Collection<ProcessDefinition> definitions = runtimeDataService.getProcessesByDeploymentId(containerId, buildQueryContext(page, pageSize, sort, sortOrder));
-            logger.debug("Found {} process definitions within container '{}'", definitions.size(), containerId);
-    
-            ProcessDefinitionList processDefinitionList = convertToProcessList(definitions);
-            logger.debug("Returning result of process definition search: {}", processDefinitionList);
-    
-            return processDefinitionList;
-        } catch (IllegalArgumentException e) {
+            return getProcessesByDeploymentIdUncatch(containerId, page, pageSize, sort, sortOrder);
+        } catch (IllegalArgumentException | DeploymentNotFoundException e) {
             // container was not found by locator
             return new ProcessDefinitionList();
         }
+    }
+    
+    public ProcessDefinitionList getProcessesByDeploymentIdCheckContainer(String containerId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
+        try {
+           return getProcessesByDeploymentIdUncatch(containerId, page, pageSize, sort, sortOrder);
+        } catch (IllegalArgumentException e) {
+            throw new DeploymentNotFoundException(containerId + " not found");
+        }
+    }
+    
+    private ProcessDefinitionList getProcessesByDeploymentIdUncatch(String containerId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
+        containerId = context.getContainerId(containerId, ContainerLocatorProvider.get().getLocator());
+        logger.debug("About to search for process definitions within container '{}' with page {} and page size {}", containerId, page, pageSize);
+        if (sort == null || sort.isEmpty()) {
+            sort = "ProcessName";
+        }
+        Collection<ProcessDefinition> definitions = runtimeDataService.getProcessesByDeploymentId(containerId, buildQueryContext(page, pageSize, sort, sortOrder));
+        logger.debug("Found {} process definitions within container '{}'", definitions.size(), containerId);
+
+        ProcessDefinitionList processDefinitionList = convertToProcessList(definitions);
+        logger.debug("Returning result of process definition search: {}", processDefinitionList);
+
+        return processDefinitionList;
     }
 
     public ProcessDefinitionList getProcessesByFilter(String filter, Integer page, Integer pageSize, String sort, boolean sortOrder) {
@@ -568,6 +614,9 @@ public class RuntimeDataServiceBase {
                         .user(taskSummary.getUserId())
                         .workItemId(taskSummary.getWorkItemId())
                         .message(taskSummary.getMessage())
+                        .correlationKey(taskSummary.getCorrelationKey())
+                        .processType(taskSummary.getProcessType())
+                        .assignedOwner(taskSummary.getCurrentOwner())
                         .build();
                 instances[counter] = task;
                 counter++;
@@ -615,9 +664,20 @@ public class RuntimeDataServiceBase {
         if (payload != null) {
             filter = marshallerHelper.unmarshal(payload, payloadType, SearchQueryFilterSpec.class);
         }
-        return convertToProcessInstanceCustomVarsList(advanceRuntimeDataService.queryProcessByVariables(convertToServiceApiQueryParam(filter.getAttributesQueryParams()),
-                                                                                                        convertToServiceApiQueryParam(filter.getProcessVariablesQueryParams()),
-                                                                                                        queryContext));
+
+        List<String> params = filter.getAttributesQueryParams().stream().map(e -> e.getColumn()).collect(toList());
+        params.removeAll(asList(TASK_ATTR_NAME, TASK_ATTR_OWNER, TASK_ATTR_STATUS));
+
+        if (params.size() == filter.getAttributesQueryParams().size() && filter.getTaskVariablesQueryParams().isEmpty()) {
+            return convertToProcessInstanceCustomVarsList(advanceRuntimeDataService.queryProcessByVariables(convertToServiceApiQueryParam(filter.getAttributesQueryParams()),
+                                                                                                            convertToServiceApiQueryParam(filter.getProcessVariablesQueryParams()),
+                                                                                                            queryContext));
+        }
+        return convertToProcessInstanceCustomVarsList(advanceRuntimeDataService.queryProcessByVariablesAndTask(convertToServiceApiQueryParam(filter.getAttributesQueryParams()),
+                                                                                                               convertToServiceApiQueryParam(filter.getProcessVariablesQueryParams()),
+                                                                                                               convertToServiceApiQueryParam(filter.getTaskVariablesQueryParams()),
+                                                                                                               getOwnersQueryParam(filter),
+                                                                                                               queryContext));
     }
 
     public ProcessInstanceUserTaskWithVariablesList queryUserTasksByVariables(String payload, String payloadType, QueryContext queryContext) {
@@ -626,12 +686,20 @@ public class RuntimeDataServiceBase {
             filter = marshallerHelper.unmarshal(payload, payloadType, SearchQueryFilterSpec.class);
         }
         return convertToUserTaskWithVariablesList(advanceRuntimeDataService.queryUserTasksByVariables(convertToServiceApiQueryParam(filter.getAttributesQueryParams()),
-                                                                                                      convertToServiceApiQueryParam(filter.getTaskVariablesQueryParams()),
-                                                                                                      convertToServiceApiQueryParam(filter.getProcessVariablesQueryParams()),
-                                                                                                      filter.getOwners(),
-                                                                                                      queryContext));
+                                                                                                  convertToServiceApiQueryParam(filter.getTaskVariablesQueryParams()),
+                                                                                                  convertToServiceApiQueryParam(filter.getProcessVariablesQueryParams()),
+                                                                                                  getOwnersQueryParam(filter),
+                                                                                                  queryContext));
     }
 
-
+    private QueryParam getOwnersQueryParam(SearchQueryFilterSpec filter) {
+        if(filter.getOwnersQueryParam() != null) {
+            return convertToServiceApiQueryParam(filter.getOwnersQueryParam());
+        }
+        if(filter.getOwners() == null || filter.getOwners().isEmpty()) {
+            return null;
+        }
+        return all(filter.getOwners());
+    }
 
 }

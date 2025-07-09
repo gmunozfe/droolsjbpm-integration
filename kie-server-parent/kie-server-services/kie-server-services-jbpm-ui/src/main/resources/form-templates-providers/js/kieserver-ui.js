@@ -32,14 +32,14 @@ function clearNotifications() {
 }
 
 function startProcess(button) {
-	if (validate()) {
+	if (validate('')) {
 		button.disabled = true;
 		
 		console.log('Process started with data ' + JSON.stringify(getData()));
 		
 		$.ajax({
 		    method: 'POST',
-		    url: getProcessEndpoint() + '?' + endpointSuffix(),
+			url: getProcessEndpoint() + '?' + endpointSuffix() + "&correlationKey=" + resolveCorrelationKey(),
 		    data: JSON.stringify(getData())
 		}).done(function( msg ) {
 			console.log('Process started with data ' + JSON.stringify(getData()) +  ' process instance id ' + msg );
@@ -60,8 +60,18 @@ function startProcess(button) {
 	}
 }
 
+function resolveCorrelationKey() {
+	if (typeof getCorrelationKey === "function") {
+		return getCorrelationKey();
+	}
+
+	if (typeof parent.getCorrelationKey === "function") {
+		return parent.getCorrelationKey();
+	}
+}
+
 function startCase(button) {
-	if (validate()) {
+	if (validate('')) {
 		button.disabled = true;
 			
 		$.ajax({
@@ -324,30 +334,25 @@ function validate(start) {
 
 var fileData = new Map();
 
-
 function encodeImageFileAsURL(input) {
-
 	var filesSelected = input.files;
 	if (filesSelected.length > 0) {
 		var fileToLoad = filesSelected[0];
-		
 		var fileInfo = {
-				'name' : fileToLoad.name,
-				'size' : fileToLoad.size,
-				'data' : null
+			'name': fileToLoad.name,
+			'size': fileToLoad.size,
+			'data': null
 		};
 		fileData.set(input.id, fileInfo);
-		
+
 		var fileReader = new FileReader();
 
-		fileReader.onload = function(fileLoadedEvent) {
-			var local = fileLoadedEvent.target.result; // <--- data: base64
-			var srcData = local.replace(/^data:.*\/.*;base64,/, "");
-
-			fileData.get(input.id).data = srcData;
-			
-			console.log("Converted Base64 version is " + srcData);
-		}
+		fileReader.onload = function (event) {
+			if (event.target.readyState == FileReader.DONE) {
+				var b64 = event.target.result.replace(/^data:.+;base64,/, '');
+				fileData.get(input.id).data = b64;
+			}
+		};
 		fileReader.readAsDataURL(fileToLoad);
 	} else {
 		alert("Please select a file");
@@ -355,7 +360,6 @@ function encodeImageFileAsURL(input) {
 }
 
 function getDocumentData(inputId) {
-
 	if (fileData.has(inputId)) {
 		var fileInfo = fileData.get(inputId);
 		var document = {
@@ -373,6 +377,57 @@ function getDocumentData(inputId) {
 	}
 	return null;
 
+}
+
+function getDocumentCollectionData(inputId) {
+	var documents = [];
+	$.each($('#' + inputId).find("a[data-field=document]"), function(index, element) {
+		var doc = $(element).data('document');
+		if(doc === undefined) {
+			var name = $(element).attr('data-name');
+			var content = $(element).attr('data-bytes');
+			doc = {
+					'lastModified' : new Date(),
+					'name' : name,
+					'content' : content,
+					'attributes' : {
+						'_UPDATED_' : 'false'
+					}
+			};
+		}
+		documents.push(doc);
+	});
+	
+	var documentColection = {
+		'org.jbpm.document.service.impl.DocumentCollectionImpl' : {
+			'documents' : documents 
+		}
+	};
+	
+	return documentColection;
+
+}
+
+function getMultipleSelectorData(inputId) {
+    var opts = [];
+
+    // loop through options in select list
+    var sel = $('#' + inputId)[0];
+    for (var i=0, len= sel.options.length; i<len; i++) {
+        opt = sel.options[i];
+        // check if selected
+        if ( opt.selected ) {
+            // add to array of option elements to return from this function
+            opts.push(opt.value);
+        }
+    }
+    
+    // return array containing references to selected option elements
+    return opts;
+}
+
+function getMultipleInputData(inputId) {
+	return $('#' + inputId).tagsinput('items');
 }
 
 function getDateFormated(id) {
@@ -505,3 +560,36 @@ function closeCreationForm(fieldId) {
 	currentRow = null;
 }
 
+function getFormattedLocalDateTime(jsondate) {
+	return {'java.time.LocalDateTime': jsondate};
+}
+
+function getFormattedUtilDate(jsondate) {
+	return {'java.util.Date': jsondate};
+}
+
+function getFormattedLocalDate(jsondate) {
+	return {'java.time.LocalDate': jsondate};
+}
+
+function getFormattedLocalTime(jsondate) {
+	return {'java.time.LocalTime': jsondate};
+}
+
+function getFormattedOffsetDateTime(jsondate) {
+	return {'java.time.OffsetDateTime': jsondate};
+}
+
+function getDate(elementId, getDateValueByType) {
+	var value = document.getElementById(elementId).value;
+	return getDateValueByType(value);
+}
+
+function getDateWithoutTime(elementId, getDateValueByType) {
+	var value = document.getElementById(elementId).value;
+	if (value === '') {
+		return getDateValueByType(value);
+	} else {
+		return getDateValueByType(value + 'T00:00');
+	}
+}

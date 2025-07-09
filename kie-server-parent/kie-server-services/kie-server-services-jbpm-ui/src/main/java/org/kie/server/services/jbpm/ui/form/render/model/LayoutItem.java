@@ -31,13 +31,27 @@ public class LayoutItem {
     private String label;
     private String type;
     private String placeHolder;
-    private String value;
+    private Object value;
+    private Number min;
+    private Number max;
+    private Number step;
+    private Number precision;
+
     private boolean required;
     private boolean readOnly;
+    private boolean showTime;
 
     private String pattern;
 
     private List<ItemOption> options;
+
+    public boolean isShowTime() {
+        return showTime;
+    }
+
+    public void setShowTime(boolean showTime) {
+        this.showTime = showTime;
+    }
 
     public String getFormId() {
         return formId;
@@ -45,6 +59,38 @@ public class LayoutItem {
 
     public void setFormId(String formId) {
         this.formId = formId;
+    }
+
+    public Number getMin() {
+        return min;
+    }
+
+    public void setMin(Number min) {
+        this.min = min;
+    }
+
+    public Number getMax() {
+        return max;
+    }
+
+    public void setMax(Number max) {
+        this.max = max;
+    }
+
+    public Number getStep() {
+        return step;
+    }
+
+    public void setStep(Number step) {
+        this.step = step;
+    }
+
+    public Number getPrecision() {
+        return precision;
+    }
+
+    public void setPrecision(Number precision) {
+        this.precision = precision;
     }
 
     public String getFieldId() {
@@ -79,11 +125,11 @@ public class LayoutItem {
         this.placeHolder = placeHolder;
     }
 
-    public String getValue() {
+    public Object getValue() {
         return value;
     }
 
-    public void setValue(String value) {
+    public void setValue(Object value) {
         this.value = value;
     }
 

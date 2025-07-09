@@ -20,19 +20,19 @@
       <groupId>org.optaplanner</groupId>
       <artifactId>optaplanner-core</artifactId>
       <scope>provided</scope>
-      <version>${version.org.kie}</version>
+      <version>${version.org.optaplanner}</version>
     </dependency>
     <dependency>
       <groupId>org.optaplanner</groupId>
       <artifactId>optaplanner-persistence-xstream</artifactId>
       <scope>provided</scope>
-      <version>${version.org.kie}</version>
+      <version>${version.org.optaplanner}</version>
     </dependency>
     <dependency>
       <groupId>org.optaplanner</groupId>
       <artifactId>optaplanner-persistence-jaxb</artifactId>
       <scope>provided</scope>
-      <version>${version.org.kie}</version>
+      <version>${version.org.optaplanner}</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.jackson</groupId>
@@ -41,8 +41,8 @@
       <version>${version.org.codehaus.jackson}</version>
     </dependency>
     <dependency>
-      <groupId>org.jboss.spec.javax.xml.bind</groupId>
-      <artifactId>jboss-jaxb-api_2.3_spec</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>

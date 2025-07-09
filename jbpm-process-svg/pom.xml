@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.drools</groupId>
     <artifactId>droolsjbpm-integration</artifactId>
-    <version>7.38.0-SNAPSHOT</version>
+    <version>7.75.0-SNAPSHOT</version>
   </parent>
 
   <groupId>org.kie</groupId>
@@ -25,14 +25,26 @@
       <artifactId>batik-anim</artifactId>
       <exclusions>
         <exclusion>
-          <groupId>org.apache.xmlgraphics</groupId>
-          <artifactId>batik-ext</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>commons-logging</groupId>
           <artifactId>commons-logging</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>xalan</groupId>
+          <artifactId>xalan</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+
+    <!-- due to https://issues.redhat.com/browse/RHPAM-4593 -->
+    <dependency>
+      <groupId>xalan</groupId>
+      <artifactId>xalan</artifactId>
+    </dependency>
+
+    <!-- due to https://issues.redhat.com/browse/RHPAM-4702 -->
+    <dependency>
+      <groupId>xalan</groupId>
+      <artifactId>serializer</artifactId>
     </dependency>
 
     <!-- Replacement for above excluded 'commons-logging:commons-logging' -->
